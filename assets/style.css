@@ -18,9 +18,19 @@ html, body { margin: 0; height: 100%; }
 body {
   font-family: "Cairo", system-ui, sans-serif;
   background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 800;
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 14px 16px;
 }
 main {
-  min-height: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
