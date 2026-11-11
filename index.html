@@ -6,13 +6,27 @@
   <title>منصة A9</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f766e'/><text x='50' y='66' font-size='46' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>A9</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
-  <header class="topbar">مجموعة A9</header>
-  <main>
-    <button type="button" class="main-btn">روتة النسائية</button>
+  <header class="topbar"><a href="#">مجموعة A9</a></header>
+
+  <main id="home" class="view center">
+    <a href="#gyn" class="main-btn">روتة النسائية</a>
   </main>
+
+  <main id="gyn" class="view page" hidden>
+    <a href="#" class="back">رجوع</a>
+    <h1>روتة النسائية والتوليد</h1>
+    <p class="sub">جدول Group 3 &middot; وقت السشن 11:30 صباحاً</p>
+
+    <section id="next" class="next"></section>
+
+    <h2>الجدول الكامل</h2>
+    <div id="list" class="list"></div>
+  </main>
+
+  <script src="assets/gyn.js"></script>
 </body>
 </html>
