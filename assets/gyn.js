@@ -106,14 +106,5 @@
     document.getElementById("list").innerHTML = html;
   }
 
-  function route() {
-    var id = location.hash === "#gyn" ? "gyn" : "home";
-    document.getElementById("home").hidden = id !== "home";
-    document.getElementById("gyn").hidden = id !== "gyn";
-    if (id === "gyn") render();
-    window.scrollTo(0, 0);
-  }
-
-  window.addEventListener("hashchange", route);
-  route();
+  window.A9_renderGyn = render;
 })();

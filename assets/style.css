@@ -149,3 +149,65 @@ h2 { font-size: 1.15rem; margin: 28px 0 10px; }
   .row { grid-template-columns: 1fr; gap: 4px; }
   .main-btn { font-size: 1.3rem; padding: 16px 36px; }
 }
+
+/* ---------- top bar with user ---------- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: start; }
+.topbar .brand { color: var(--on-primary); text-decoration: none; }
+.user-box { display: flex; align-items: center; gap: 12px; font-size: .9rem; font-weight: 600; color: var(--on-primary); }
+.user-box a { color: var(--on-primary); text-decoration: underline; text-underline-offset: 4px; }
+.user-box button {
+  font: inherit; font-size: .85rem; cursor: pointer; color: var(--on-primary);
+  background: transparent; border: 1px solid currentColor; border-radius: 8px; padding: 0 10px;
+}
+.topbar:has(.user-box[hidden]) { justify-content: center; }
+
+/* ---------- login ---------- */
+.narrow { max-width: 520px; }
+.input {
+  width: 100%; font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+}
+.input:focus { outline: 2px solid var(--primary); outline-offset: 0; border-color: transparent; }
+.input.pin { font-size: 1.8rem; letter-spacing: .6em; text-align: center; direction: ltr; padding-left: calc(14px + .6em); }
+.names { display: grid; gap: 8px; }
+.name {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;
+  font: inherit; font-weight: 600; color: var(--text); text-align: start; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
+}
+.name:hover { border-color: var(--primary); }
+.name .new { font-size: .8rem; color: var(--cons); background: var(--cons-bg); padding: 0 10px; border-radius: 8px; flex-shrink: 0; }
+.btn {
+  width: 100%; font: inherit; font-weight: 800; font-size: 1.05rem; cursor: pointer;
+  background: var(--primary); color: var(--on-primary); border: 0; border-radius: 12px; padding: 12px;
+}
+.btn:hover { background: var(--primary-hover); }
+button.back { font: inherit; cursor: pointer; }
+.error { color: var(--exam); background: var(--exam-bg); border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; }
+.center-text { text-align: center; }
+
+/* ---------- admin ---------- */
+.arow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; border-top: 1px solid var(--border);
+}
+.arow:first-child { border-top: 0; }
+.anum { color: var(--muted); width: 24px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.ainfo { flex: 1; min-width: 0; }
+.aname { font-weight: 600; }
+.small-btn {
+  font: inherit; font-size: .85rem; cursor: pointer; white-space: nowrap;
+  background: transparent; color: var(--exam); border: 1px solid var(--exam); border-radius: 8px; padding: 2px 10px;
+}
+.small-spacer { width: 92px; flex-shrink: 0; }
+
+.loading {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 6px 18px; border-radius: 999px; font-size: .9rem;
+}
+
+@media (max-width: 520px) {
+  .arow { flex-wrap: wrap; }
+  .small-spacer { display: none; }
+  .user-box { gap: 8px; }
+}

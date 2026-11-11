@@ -10,23 +10,65 @@
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
-  <header class="topbar"><a href="#">مجموعة A9</a></header>
+  <header class="topbar">
+    <a href="#" class="brand">مجموعة A9</a>
+    <div id="user-box" class="user-box" hidden>
+      <span id="user-name"></span>
+      <a href="#admin" id="admin-link" hidden>الإدارة</a>
+      <button type="button" id="logout">خروج</button>
+    </div>
+  </header>
 
-  <main id="home" class="view center">
+  <!-- تسجيل الدخول -->
+  <main id="login" class="view page narrow" hidden>
+    <div id="login-pick">
+      <h1>تسجيل الدخول</h1>
+      <p class="sub">اختار اسمك من القائمة</p>
+      <input id="name-search" class="input" type="search" placeholder="دوّر على اسمك" autocomplete="off" />
+      <div id="names" class="names"></div>
+    </div>
+
+    <form id="login-pin" hidden>
+      <button type="button" class="back" id="pin-back">رجوع</button>
+      <h1 id="pin-name"></h1>
+      <p class="sub" id="pin-hint"></p>
+      <input id="pin1" class="input pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required />
+      <div id="pin2-wrap" hidden>
+        <p class="sub">اكتب الرقم مرة ثانية للتأكيد</p>
+        <input id="pin2" class="input pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" />
+      </div>
+      <p id="pin-error" class="error" hidden></p>
+      <button type="submit" class="btn" id="pin-submit">دخول</button>
+    </form>
+  </main>
+
+  <!-- الرئيسية -->
+  <main id="home" class="view center" hidden>
     <a href="#gyn" class="main-btn">روتة النسائية</a>
   </main>
 
+  <!-- روتة النسائية -->
   <main id="gyn" class="view page" hidden>
     <a href="#" class="back">رجوع</a>
     <h1>روتة النسائية والتوليد</h1>
     <p class="sub">جدول Group 3 &middot; وقت السشن 11:30 صباحاً</p>
-
     <section id="next" class="next"></section>
-
     <h2>الجدول الكامل</h2>
     <div id="list" class="list"></div>
   </main>
 
+  <!-- الإدارة -->
+  <main id="admin" class="view page" hidden>
+    <a href="#" class="back">رجوع</a>
+    <h1>الإدارة</h1>
+    <p class="sub" id="admin-summary"></p>
+    <div id="admin-list" class="list"></div>
+  </main>
+
+  <div id="loading" class="loading" hidden>جاري التحميل</div>
+
+  <script src="assets/config.js"></script>
   <script src="assets/gyn.js"></script>
+  <script src="assets/app.js"></script>
 </body>
 </html>
