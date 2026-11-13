@@ -310,10 +310,19 @@
     if (h === "chat") h = "inbox";
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.dataset.nav === h); });
     document.querySelectorAll(".admin-only").forEach(function (a) { a.hidden = !(state.me && state.me.is_admin); });
-    if (state.members) renderMembers();
-    loadMembers(true).then(renderMembers).catch(function () {
-      $("members-list").innerHTML = '<p class="error" style="margin:12px 16px">ما گدرنا نجيب القائمة.</p>';
-    });
+    showPanel("main");
+    loadMembers(true).then(function (all) { $("members-count").textContent = all.length; }).catch(function () {});
+  }
+  function showPanel(which) {
+    $("drawer-main").hidden = which !== "main";
+    $("drawer-members").hidden = which !== "members";
+    if (which === "members") {
+      $("members-search").value = "";
+      if (state.members) renderMembers(); else $("members-list").innerHTML = "";
+      loadMembers(true).then(renderMembers).catch(function () {
+        $("members-list").innerHTML = '<p class="error" style="margin:12px 16px">ما گدرنا نجيب القائمة.</p>';
+      });
+    }
   }
   function closeDrawer() {
     document.body.classList.remove("drawer-open");
@@ -554,6 +563,8 @@
   });
   $("menu-btn").addEventListener("click", openDrawer);
   $("drawer-close").addEventListener("click", closeDrawer);
+  $("nav-members").addEventListener("click", function () { showPanel("members"); });
+  $("members-back").addEventListener("click", function () { showPanel("main"); });
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
