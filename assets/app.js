@@ -72,8 +72,11 @@
       state.reps = {};
       (rows || []).forEach(function (r) { state.reps[r.id] = true; });
     }).catch(function () {});
-    return Promise.all([rpc("a9_list_students"), reps]).then(function (res) {
-      state.students = res[0] || [];
+    var pics = rpc("a9_login_avatars").catch(function () { return []; });
+    return Promise.all([rpc("a9_list_students"), reps, pics]).then(function (res) {
+      var map = {};
+      (res[2] || []).forEach(function (r) { map[r.id] = r.avatar; });
+      state.students = (res[0] || []).map(function (s) { s.avatar = map[s.id] || null; return s; });
       renderNames();
     }).catch(function () {
       $("names").innerHTML = '<p class="error">ما گدرنا نجيب الأسماء، تأكد من الإنترنت وحدّث الصفحة.</p>';
@@ -87,8 +90,7 @@
     $("login-pick").hidden = true;
     $("login-pin").hidden = false;
     $("pin-name").textContent = s.name;
-    $("pin-avatar").textContent = initials(s.name);
-    $("pin-avatar").style.setProperty("--h", avatarHue(s.id));
+    paintAvatar($("pin-avatar"), s);
     $("pin-error").hidden = true;
     $("pin1").value = ""; $("pin2").value = "";
     var first = !s.has_pin;
@@ -177,7 +179,7 @@
 
   function loadAdmin() {
     loading(true);
-    rpc("a9_admin_students", { p_token: getToken() }).then(function (rows) {
+    rpc("a9_admin_students", { p_token: getToken() }).then(withAvatars).then(function (rows) {
       loading(false);
       var done = rows.filter(function (r) { return r.has_pin; }).length;
       $("admin-summary").textContent = "سجّل " + done + " من " + rows.length + " طالب";
@@ -308,6 +310,16 @@
         (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") +
         "</button>";
     }).join("") || '<p class="sub center-text" style="padding:16px">ماكو اسم بهذا البحث</p>';
+  }
+
+  // يضيف صور الحسابات لأي قائمة طلاب (من قائمة المشاركين)
+  function withAvatars(rows) {
+    return loadMembers().then(function (all) {
+      var map = {};
+      (all || []).forEach(function (m) { map[m.id] = m.avatar; });
+      (rows || []).forEach(function (r) { if (!r.avatar && map[r.id]) r.avatar = map[r.id]; });
+      return rows;
+    }).catch(function () { return rows; });
   }
 
   // ---------- side menu ----------
@@ -716,14 +728,14 @@
     var admin = state.me && state.me.is_admin;
     $("ent-admin").hidden = !admin;
     if (!admin) return;
-    rpc("a9_admin_grades", { p_token: getToken(), p_rotation: "ent" }).then(function (rows) {
+    rpc("a9_admin_grades", { p_token: getToken(), p_rotation: "ent" }).then(withAvatars).then(function (rows) {
       rows = rows || [];
       var nums = rows.filter(function (r) { return r.grade != null; }).map(function (r) { return Number(r.grade); });
       var avg = nums.length ? (nums.reduce(function (a, b) { return a + b; }, 0) / nums.length) : 0;
       $("ent-stats").textContent = nums.length ? "المعدل " + avg.toFixed(2) + " · أعلى درجة " + Math.max.apply(null, nums) + " · أقل درجة " + Math.min.apply(null, nums) : "";
       $("ent-list").innerHTML = rows.map(function (r) {
         var low = r.grade != null && Number(r.grade) < 5;
-        return '<div class="grow">' + avatar({ id: r.id, name: r.name }) +
+        return '<div class="grow">' + avatar(r) +
           '<span class="nm">' + esc(r.name) + "</span>" +
           '<b class="gval' + (r.status ? " held" : low ? " low" : "") + '">' + esc(fmtGrade(r.grade == null && !r.status ? null : r)) + "</b></div>";
       }).join("");
