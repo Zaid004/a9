@@ -626,3 +626,17 @@ body.drawer-open { overflow: hidden; }
   background: none; border: 0; padding: 0;
 }
 .panel-back svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- الشريط الكحلي ---------- */
+.topbar {
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, .35) !important;
+}
+.drawer-head { background: linear-gradient(135deg, #0f172a, #1e293b); }
+.menu-btn .dot { box-shadow: 0 0 0 2px #0f172a; }
+.topbar .me-btn { color: #0f172a; }
+@media (prefers-color-scheme: dark) {
+  .topbar { background: linear-gradient(135deg, #0b1220, #172033) !important; }
+  .drawer-head { background: linear-gradient(135deg, #0b1220, #172033); }
+  .topbar .me-btn { color: #0f172a; background: #e2e8f0; }
+}
