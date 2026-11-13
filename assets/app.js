@@ -143,6 +143,8 @@
     $("me-btn").hidden = false;
     $("menu-btn").hidden = false;
     startUnreadPolling();
+    syncPush();
+    setTimeout(maybeShowIntro, 600);
     paintAvatar($("me-btn"), state.me);
     backToNames();
     route();
@@ -648,6 +650,83 @@
     }).catch(function () { loading(false); $("log-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب السجل.</p>'; });
   }
 
+  // ---------- notifications ----------
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  function pushSupported() { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+  function urlB64(s) {
+    var pad = "=".repeat((4 - s.length % 4) % 4), b = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    var a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a;
+  }
+  function notifState() {
+    if (!pushSupported()) return isIOS && !isStandalone() ? "needs-install" : "unsupported";
+    if (Notification.permission === "denied") return "denied";
+    if (Notification.permission === "granted") return "granted";
+    return "default";
+  }
+  function notifHelpText(st) {
+    if (st === "needs-install") return "بالآيفون الإشعارات تشتغل بس من تضيف المنصة لشاشة الموبايل: من Safari اضغط زر المشاركة وبعدها <b>إضافة إلى الشاشة الرئيسية</b>، وافتح المنصة من الأيقونة وفعّل الإشعارات من هنا.";
+    if (st === "denied") return "الإشعارات مقفولة لهذا الموقع. فعّلها من إعدادات الموبايل أو المتصفح، وبعدها ارجع اضغط هنا.";
+    if (st === "unsupported") return "هذا المتصفح ما يدعم الإشعارات. جرب Chrome، أو بالآيفون ضيف المنصة لشاشة الموبايل.";
+    return "";
+  }
+  function enableNotifications() {
+    var st = notifState();
+    if (st !== "default" && st !== "granted") return Promise.resolve(st);
+    return Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") return notifState();
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.getSubscription().then(function (sub) {
+          return sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64(CFG.vapidPublic) });
+        });
+      }).then(function (sub) {
+        var j = sub.toJSON();
+        return rpc("a9_push_subscribe", { p_token: getToken(), p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+      }).then(function (res) { return res && res.ok ? "granted" : "error"; });
+    }).catch(function () { return "error"; });
+  }
+  // إذا الإذن موجود، نتأكد إن الاشتراك محفوظ بالقاعدة (يتجدد أحياناً)
+  function syncPush() {
+    if (notifState() !== "granted") return;
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      if (sub) { var j = sub.toJSON(); rpc("a9_push_subscribe", { p_token: getToken(), p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth }).catch(function () {}); }
+      else enableNotifications();
+    }).catch(function () {});
+  }
+  function renderNotifRow() {
+    var st = notifState();
+    $("notif-state").textContent = st === "granted" ? "مفعّلة" : st === "default" ? "اضغط للتفعيل" : "غير متاحة";
+    $("notif-help").hidden = true;
+  }
+  function onNotifRow() {
+    var st = notifState();
+    if (st === "granted") { $("notif-help").innerHTML = "الإشعارات مفعّلة. راح يوصلك إشعار من أحد يراسلك أو يكتب بمجموعة إنت بيها."; $("notif-help").hidden = !$("notif-help").hidden; return; }
+    if (st !== "default") { $("notif-help").innerHTML = notifHelpText(st); $("notif-help").hidden = false; return; }
+    enableNotifications().then(function (r) {
+      renderNotifRow();
+      if (r !== "granted") { $("notif-help").innerHTML = r === "error" ? "ما گدرنا نفعّل الإشعارات، جرب مرة ثانية." : notifHelpText(r); $("notif-help").hidden = false; }
+    });
+  }
+
+  // ---------- intro popup (مرة وحدة لكل جهاز) ----------
+  var INTRO_KEY = "a9:seen:messages-intro";
+  function maybeShowIntro() {
+    try { if (localStorage.getItem(INTRO_KEY)) return; } catch (e) { return; }
+    var st = notifState();
+    $("intro-notif").hidden = st === "granted" || st === "unsupported";
+    $("intro-notif").textContent = st === "needs-install" ? "شلون أفعّل الإشعارات؟" : "تفعيل الإشعارات";
+    $("intro-notif-note").textContent = "";
+    $("intro").hidden = false;
+  }
+  function closeIntro() { $("intro").hidden = true; try { localStorage.setItem(INTRO_KEY, "1"); } catch (e) {} }
+  function onIntroNotif() {
+    var st = notifState();
+    if (st !== "default") { $("intro-notif-note").innerHTML = notifHelpText(st); return; }
+    enableNotifications().then(function (r) {
+      if (r === "granted") { $("intro-notif").hidden = true; $("intro-notif-note").textContent = "انفعلت الإشعارات."; }
+      else $("intro-notif-note").innerHTML = r === "error" ? "ما گدرنا نفعّلها، جرب من صفحة حسابك." : notifHelpText(r);
+    });
+  }
+
   // ---------- install to home screen ----------
   var installEvt = null;
   window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); installEvt = e; });
@@ -685,7 +764,7 @@
     if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); }
-    else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
+    else if (h === "me") { show("me"); renderMe(); renderNotifRow(); $("install-row").hidden = isStandalone(); }
     else { show("home"); renderHome(); }
   }
 
@@ -1123,6 +1202,11 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
+  $("notif-row").addEventListener("click", onNotifRow);
+  $("intro-notif").addEventListener("click", onIntroNotif);
+  $("intro-close").addEventListener("click", closeIntro);
+  $("intro-open").addEventListener("click", closeIntro);
+  $("intro").addEventListener("click", function (e) { if (e.target === $("intro")) closeIntro(); });
   $("consult").addEventListener("click", onConsultClick);
   $("consult").addEventListener("change", onConsultMove);
   $("friend-search").addEventListener("input", function () { if (consult) renderFriends(); });

@@ -250,6 +250,19 @@
     </form>
   </main>
 
+  <!-- نافذة الإعلان -->
+  <div id="intro" class="sheet" hidden>
+    <div class="sheet-card intro-card" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+      <div class="intro-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></div>
+      <h2 id="intro-title">جديد: الرسائل</h2>
+      <p>تگدر هسه تراسل أي طالب بالمجموعة، أو تسوي مجموعة محادثة ويه أصدقاءك.</p>
+      <p class="note" id="intro-notif-note"></p>
+      <button type="button" class="btn" id="intro-notif">تفعيل الإشعارات</button>
+      <a href="#inbox" class="btn ghost intro-link" id="intro-open">فتح الرسائل</a>
+      <button type="button" class="link-btn intro-later" id="intro-close">لاحقاً</button>
+    </div>
+  </div>
+
   <!-- معلومات المجموعة -->
   <div id="ginfo" class="sheet" hidden>
     <div class="sheet-card ginfo-card" role="dialog" aria-modal="true">
@@ -308,6 +321,11 @@
       <button type="submit" class="btn">حفظ الرقم الجديد</button>
     </form>
 
+    <button type="button" id="notif-row" class="card menu-row">
+      <span>الإشعارات</span>
+      <span class="nav-end"><span id="notif-state" class="note"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>
+    </button>
+    <div id="notif-help" class="card install-help" hidden></div>
     <button type="button" id="install-row" class="card menu-row">
       <span>إضافة المنصة لشاشة الموبايل</span>
       <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
