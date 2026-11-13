@@ -3,7 +3,7 @@
 
   var CFG = window.A9_CONFIG;
   var TOKEN_KEY = "a9:token";
-  var state = { me: null, students: [], picked: null, reps: {} };
+  var state = { me: null, students: [], picked: null, reps: {}, members: null };
 
   // ---------- helpers ----------
   function $(id) { return document.getElementById(id); }
@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me"].forEach(function (v) { $(v).hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "members"].forEach(function (v) { $(v).hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -147,7 +147,7 @@
   function logout() {
     var t = getToken();
     setToken(null);
-    state.me = null;
+    state.me = null; state.members = null;
     $("me-btn").hidden = true;
     if (t) rpc("a9_logout", { p_token: t }).catch(function () {});
     location.hash = "";
@@ -243,7 +243,7 @@
     loading(true);
     return rpc("a9_set_avatar", { p_token: getToken(), p_avatar: data }).then(function (res) {
       loading(false);
-      if (res && res.ok) { state.me.avatar = data; renderMe(); paintAvatar($("me-btn"), state.me); photoMsg(data ? "انحفظت الصورة" : "انحذفت الصورة"); }
+      if (res && res.ok) { state.me.avatar = data; state.members = null; renderMe(); paintAvatar($("me-btn"), state.me); photoMsg(data ? "انحفظت الصورة" : "انحذفت الصورة"); }
       else photoMsg("ما گدرنا نحفظ الصورة، جرب صورة ثانية.");
     }).catch(function () { loading(false); photoMsg("صار خطأ بالاتصال."); });
   }
@@ -272,17 +272,86 @@
     }).catch(function () { loading(false); say("صار خطأ بالاتصال."); });
   }
 
+  // ---------- participants ----------
+  function loadMembers(force) {
+    if (state.members && !force) return Promise.resolve(state.members);
+    return rpc("a9_members", { p_token: getToken() }).then(function (rows) { state.members = rows || []; return state.members; });
+  }
+
+  function renderMembers() {
+    var q = $("members-search").value.trim();
+    var all = state.members || [];
+    var joined = all.filter(function (m) { return m.joined; }).length;
+    $("members-sub").textContent = all.length + " طالب · سجّل منهم " + joined;
+    var rows = all.filter(function (m) { return !q || m.name.indexOf(q) !== -1; });
+    $("members-list").innerHTML = rows.map(function (m) {
+      return '<button type="button" class="mrow' + (m.is_admin ? " rep" : "") + '" data-member="' + m.id + '">' +
+        avatar(m) +
+        '<span class="nm">' + esc(m.name) + "</span>" +
+        (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
+        (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") +
+        "</button>";
+    }).join("") || '<p class="sub center-text" style="padding:16px">ماكو اسم بهذا البحث</p>';
+  }
+
+  function openMembers() {
+    $("members-search").value = "";
+    if (state.members) renderMembers(); else $("members-list").innerHTML = "";
+    loading(true);
+    loadMembers(true).then(function () { loading(false); renderMembers(); })
+      .catch(function () { loading(false); $("members-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب القائمة.</p>'; });
+  }
+
+  function openPerson(id) {
+    var m = (state.members || []).filter(function (x) { return x.id === id; })[0];
+    if (!m) return;
+    paintAvatar($("person-avatar"), m);
+    $("person-name").textContent = m.name;
+    $("person-badge").innerHTML = m.is_admin ? '<span class="tag gold">الممثل</span>' : '<span class="tag preg">طالب</span>';
+    $("person").hidden = false;
+  }
+  function closePerson() { $("person").hidden = true; }
+
+  function renderMini() {
+    loadMembers().then(function (all) {
+      var withPhoto = all.filter(function (m) { return m.avatar; });
+      var pick = withPhoto.concat(all.filter(function (m) { return !m.avatar; })).slice(0, 4);
+      $("mini-avatars").innerHTML = pick.map(function (m) { return avatar(m); }).join("");
+      $("mini-count").textContent = all.length + " طالب";
+    }).catch(function () { $("mini-count").textContent = ""; });
+  }
+
+  // ---------- install to home screen ----------
+  var installEvt = null;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); installEvt = e; });
+  function isStandalone() { return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; }
+  function onInstall() {
+    var help = $("install-help");
+    if (installEvt) {
+      installEvt.prompt();
+      installEvt.userChoice.then(function () { installEvt = null; });
+      return;
+    }
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    help.innerHTML = ios
+      ? "<b>بالآيفون:</b> افتح المنصة بـ Safari، اضغط زر المشاركة (المربع اللي بيه سهم لفوق)، وبعدها <b>إضافة إلى الشاشة الرئيسية</b>."
+      : "<b>بالأندرويد:</b> من قائمة المتصفح (النقاط الثلاث) اختار <b>إضافة إلى الشاشة الرئيسية</b> أو <b>تثبيت التطبيق</b>.";
+    help.hidden = !help.hidden;
+  }
+
   // ---------- routing ----------
   function route() {
     if (!state.me) return showLogin();
     var h = location.hash.replace("#", "");
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); }
-    else if (h === "me") { show("me"); renderMe(); }
+    else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
+    else if (h === "members") { show("members"); openMembers(); }
     else { show("home"); renderHome(); }
   }
 
   function renderHome() {
+    renderMini();
     var s = window.A9_gynSummary();
     $("rot-bar").style.width = Math.round((s.done / s.total) * 100) + "%";
     $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
@@ -303,6 +372,14 @@
   $("photo-input").addEventListener("change", onPhoto);
   $("photo-remove").addEventListener("click", function () { if (confirm("تحذف صورتك؟")) saveAvatar(null); });
   $("pin-form").addEventListener("submit", onChangePin);
+  $("members-search").addEventListener("input", renderMembers);
+  $("members-list").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-member]"); if (b) openPerson(Number(b.dataset.member));
+  });
+  $("person-close").addEventListener("click", closePerson);
+  $("person").addEventListener("click", function (e) { if (e.target === $("person")) closePerson(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePerson(); });
+  $("install-row").addEventListener("click", onInstall);
   $("admin-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-reset]"); if (b) resetPin(Number(b.dataset.reset), b.dataset.name);
   });
