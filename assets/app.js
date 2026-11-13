@@ -25,6 +25,15 @@
     });
   }
 
+  function initials(name) {
+    var parts = String(name).split(" ").filter(Boolean);
+    return (parts[0] ? parts[0][0] : "") + (parts[1] ? parts[1][0] : "");
+  }
+  function avatarHue(id) { return (id * 47) % 360; }
+  function avatar(s, extra) {
+    return '<span class="avatar' + (extra ? " " + extra : "") + '" style="--h:' + avatarHue(s.id) + '">' + esc(initials(s.name)) + "</span>";
+  }
+
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
@@ -39,7 +48,7 @@
       .filter(function (s) { return !q || s.name.indexOf(q) !== -1; })
       .map(function (s) {
         return '<button type="button" class="name" data-id="' + s.id + '">' +
-          '<span>' + esc(s.name) + "</span>" +
+          avatar(s) + '<span class="nm">' + esc(s.name) + "</span>" +
           (s.has_pin ? "" : '<span class="new">جديد</span>') +
           "</button>";
       }).join("");
@@ -63,6 +72,8 @@
     $("login-pick").hidden = true;
     $("login-pin").hidden = false;
     $("pin-name").textContent = s.name;
+    $("pin-avatar").textContent = initials(s.name);
+    $("pin-avatar").style.setProperty("--h", avatarHue(s.id));
     $("pin-error").hidden = true;
     $("pin1").value = ""; $("pin2").value = "";
     var first = !s.has_pin;
@@ -149,9 +160,10 @@
       loading(false);
       var done = rows.filter(function (r) { return r.has_pin; }).length;
       $("admin-summary").textContent = "سجّل " + done + " من " + rows.length + " طالب";
+      $("admin-bar").style.width = Math.round((done / rows.length) * 100) + "%";
       $("admin-list").innerHTML = rows.map(function (r) {
         return '<div class="arow">' +
-          '<div class="anum">' + r.id + "</div>" +
+          avatar(r) +
           '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag special">مسؤول</span>' : "") + "</div>" +
           '<div class="note">' + (r.has_pin ? "آخر دخول: " + fmtDate(r.last_login) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div></div>" +
           '<span class="tag ' + (r.has_pin ? "preg" : "cons") + '">' + (r.has_pin ? "مسجّل" : "ما سجّل") + "</span>" +
@@ -180,7 +192,21 @@
     var h = location.hash.replace("#", "");
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); }
-    else show("home");
+    else { show("home"); renderHome(); }
+  }
+
+  function renderHome() {
+    var h = new Date().getHours();
+    var greet = h < 12 ? "صباح الخير" : h < 18 ? "هلا" : "مساء الخير";
+    $("hello-name").textContent = greet + " " + state.me.name.split(" ")[0];
+    $("hello-date").textContent = new Date().toLocaleDateString("ar-IQ", { weekday: "long", day: "numeric", month: "long" });
+    var s = window.A9_gynSummary();
+    $("rot-bar").style.width = Math.round((s.done / s.total) * 100) + "%";
+    $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
+    $("rot-next").innerHTML = s.next
+      ? '<span class="rot-label">' + (s.next.when === "اليوم" ? "اليوم" : "الجاي: " + esc(s.next.when)) + "</span>" +
+        '<span class="rot-place">' + esc(s.next.place) + (s.next.time ? " &middot; " + esc(s.next.time) : "") + "</span>"
+      : '<span class="rot-label">خلصت الروتة</span>';
   }
 
   // ---------- events ----------
