@@ -750,6 +750,17 @@
     }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
   }
 
+  // الحد لكل مجموعة: التوزيع متساوي (17 بنية = 5،4،4،4 · 14 ولد = 4،4،3،3)
+  function capFor(gr, gender) {
+    var v = consult;
+    var total = gender === "F" ? v.girls_total : v.boys_total;
+    if (total == null) return CAP[gender];
+    var key = gender === "F" ? "girls" : "boys";
+    var base = Math.floor(total / 4), extra = total % 4;
+    var over = v.groups.filter(function (x) { return x[key] > base; }).length;
+    return gr[key] > base || over < extra ? base + 1 : base;
+  }
+
   function renderConsult() {
     var v = consult, admin = v.is_admin, g = v.my_gender;
     var other = g === "F" ? "ولد" : "بنات";
@@ -762,7 +773,8 @@
     $("consult-groups").innerHTML = v.groups.map(function (gr) {
       var mine = v.my_group === gr.no;
       var myCount = g === "F" ? gr.girls : gr.boys;
-      var room = myCount < CAP[g] && gr.girls + gr.boys < CAP.total;
+      var room = myCount < capFor(gr, g) && gr.girls + gr.boys < CAP.total;
+      var repG = v.rep_group === gr.no;
       var btn = "";
       if (!v.locked) {
         if (mine) btn = '<button type="button" class="cbtn leave" data-leave="1">مغادرة</button>';
@@ -777,10 +789,10 @@
           (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") + (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") + sel + "</div>";
       }).join("");
       var counts = admin
-        ? '<span class="chip-n">بنات ' + gr.girls + "/" + CAP.F + '</span><span class="chip-n">ولد ' + gr.boys + "/" + CAP.M + "</span>"
-        : '<span class="chip-n">' + (g === "F" ? "بنات " + gr.girls + "/" + CAP.F : "ولد " + gr.boys + "/" + CAP.M) + '</span><span class="chip-n muted-chip">' + other + " " + (g === "F" ? gr.boys : gr.girls) + "</span>";
-      return '<section class="cgroup' + (mine ? " mine" : "") + '">' +
-        '<div class="cg-head"><b>المجموعة ' + gr.no + "</b>" + btn + "</div>" +
+        ? '<span class="chip-n">بنات ' + gr.girls + "/" + capFor(gr, "F") + '</span><span class="chip-n">ولد ' + gr.boys + "/" + capFor(gr, "M") + "</span>"
+        : '<span class="chip-n">' + (g === "F" ? "بنات " + gr.girls + "/" + capFor(gr, "F") : "ولد " + gr.boys + "/" + capFor(gr, "M")) + '</span><span class="chip-n muted-chip">' + other + " " + (g === "F" ? gr.boys : gr.girls) + "</span>";
+      return '<section class="cgroup' + (mine ? " mine" : "") + (repG ? " rep-group" : "") + '">' +
+        '<div class="cg-head"><b>المجموعة ' + gr.no + (repG ? ' <span class="rep-label">مجموعة الممثل</span>' : "") + "</b>" + btn + "</div>" +
         '<div class="cg-counts">' + counts + "</div>" +
         '<div class="cg-members">' + (members || '<p class="note" style="margin:6px 0">' + (admin ? "ماكو أحد بعد" : "ماكو " + (g === "F" ? "بنات" : "ولد") + " بعد") + "</p>") + "</div>" +
         "</section>";
@@ -810,7 +822,7 @@
   function renderFriends() {
     var mine = consult.groups.filter(function (x) { return x.no === consult.my_group; })[0];
     var g = consult.my_gender;
-    var full = mine && ((g === "F" ? mine.girls : mine.boys) >= CAP[g] || mine.girls + mine.boys >= CAP.total);
+    var full = mine && ((g === "F" ? mine.girls : mine.boys) >= capFor(mine, g) || mine.girls + mine.boys >= CAP.total);
     $("friend-search").hidden = !!full;
     if (full) { $("friend-list").innerHTML = '<p class="note">مجموعتك تعبت، ما تگدر تضيف أكثر.</p>'; return; }
     var q = $("friend-search").value.trim();
