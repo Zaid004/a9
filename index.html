@@ -11,12 +11,11 @@
 </head>
 <body>
   <header class="topbar">
-    <a href="#" class="brand"><span class="mark">A9</span><span>مجموعة A9</span></a>
-    <div id="user-box" class="user-box" hidden>
-      <span id="user-name"></span>
-      <a href="#admin" id="admin-link" hidden>الإدارة</a>
-      <button type="button" id="logout">خروج</button>
+    <div class="tb-side">
+      <a href="#me" id="me-btn" class="me-btn" aria-label="حسابي" hidden></a>
     </div>
+    <a href="#" class="brand">مجموعة A9</a>
+    <div class="tb-side"></div>
   </header>
 
   <!-- تسجيل الدخول -->
@@ -69,6 +68,48 @@
     <section id="next" class="next"></section>
     <h2>الجدول الكامل</h2>
     <div id="list" class="list"></div>
+  </main>
+
+  <!-- حسابي -->
+  <main id="me" class="view page narrow" hidden>
+    <a href="#" class="back">رجوع</a>
+    <section class="card profile">
+      <div class="profile-photo">
+        <div id="me-avatar" class="avatar huge"></div>
+        <label class="photo-btn" for="photo-input" aria-label="تغيير الصورة">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        </label>
+        <input id="photo-input" type="file" accept="image/*" hidden />
+      </div>
+      <h1 id="me-name"></h1>
+      <div id="me-badges" class="badges"></div>
+      <div class="photo-actions">
+        <label for="photo-input" class="link-btn">تغيير الصورة</label>
+        <button type="button" id="photo-remove" class="link-btn danger" hidden>حذف الصورة</button>
+      </div>
+      <p id="photo-msg" class="note center-text" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">معلومات الحساب</h2>
+      <div class="info-row"><span>المجموعة</span><b>A9 &middot; Group 3</b></div>
+      <div class="info-row"><span>آخر دخول</span><b id="me-last"></b></div>
+    </section>
+
+    <form id="pin-form" class="card">
+      <h2 class="card-title">تغيير الرقم السري</h2>
+      <input id="pin-old" class="input" type="password" inputmode="numeric" maxlength="4" placeholder="الرقم الحالي" autocomplete="off" required />
+      <input id="pin-new" class="input" type="password" inputmode="numeric" maxlength="4" placeholder="الرقم الجديد (4 أرقام)" autocomplete="off" required />
+      <input id="pin-new2" class="input" type="password" inputmode="numeric" maxlength="4" placeholder="أعد الرقم الجديد" autocomplete="off" required />
+      <p id="pin-msg" class="error" hidden></p>
+      <button type="submit" class="btn">حفظ الرقم الجديد</button>
+    </form>
+
+    <a href="#admin" id="me-admin" class="card menu-row" hidden>
+      <span>صفحة الإدارة</span>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+    </a>
+    <button type="button" id="logout" class="btn outline-danger">تسجيل الخروج</button>
   </main>
 
   <!-- الإدارة -->
