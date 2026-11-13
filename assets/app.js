@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -329,7 +329,7 @@
     $("menu-btn").setAttribute("aria-expanded", "true");
     $("drawer-backdrop").hidden = false;
     var h = (location.hash.replace("#", "") || "home").split("/")[0];
-    if (h === "chat") h = "inbox";
+    if (h === "chat" || h === "gchat" || h === "new") h = "inbox";
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.dataset.nav === h); });
     document.querySelectorAll(".admin-only").forEach(function (a) { a.hidden = !(state.me && state.me.is_admin); });
     showPanel("main");
@@ -366,7 +366,8 @@
   function closePerson() { $("person").hidden = true; }
 
   // ---------- messages ----------
-  var chat = { other: null, lastId: 0, timer: null, sending: false };
+  var chat = { kind: "dm", other: null, lastId: 0, lastSender: null, timer: null, sending: false, info: null };
+  var GROUP_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 6.5-3.1"/></svg>';
   var unreadTimer = null;
 
   function timeLabel(iso) {
@@ -393,10 +394,23 @@
 
   function openInbox() {
     loading(true);
-    rpc("a9_conversations", { p_token: getToken() }).then(function (rows) {
+    var dms = rpc("a9_conversations", { p_token: getToken() });
+    var groups = rpc("a9_group_list", { p_token: getToken() }).catch(function () { return []; });
+    Promise.all([dms, groups]).then(function (res) {
       loading(false);
-      rows = rows || [];
-      $("inbox-list").innerHTML = rows.length ? rows.map(function (c) {
+      var items = (res[0] || []).map(function (c) { c.kind = "dm"; return c; })
+        .concat((res[1] || []).map(function (g) { g.kind = "group"; return g; }))
+        .sort(function (a, b) { return new Date(b.last_at) - new Date(a.last_at); });
+      $("inbox-list").innerHTML = items.length ? items.map(function (c) {
+        if (c.kind === "group") {
+          var last = c.last_body ? (c.last_mine ? "أنت: " : c.last_sender ? esc(c.last_sender.split(" ")[0]) + ": " : "") + esc(c.last_body) : "مجموعة جديدة · " + c.members + " أعضاء";
+          return '<a class="conv' + (c.unread ? " unread" : "") + '" href="#gchat/' + c.id + '">' +
+            '<span class="avatar group-av">' + GROUP_ICON + "</span>" +
+            '<div class="conv-main"><div class="conv-top"><b>' + esc(c.name) + '</b><span class="tag special">مجموعة</span>' +
+            '<span class="conv-time">' + timeLabel(c.last_at) + "</span></div>" +
+            '<div class="conv-last">' + last + "</div></div>" +
+            (c.unread ? '<b class="badge">' + c.unread + "</b>" : "") + "</a>";
+        }
         var who = { id: c.other, name: c.name, avatar: c.avatar };
         return '<a class="conv' + (c.unread ? " unread" : "") + '" href="#chat/' + c.other + '">' +
           avatar(who) +
@@ -406,22 +420,89 @@
           '<div class="conv-last">' + (c.last_mine ? "أنت: " : "") + esc(c.last_body) + "</div></div>" +
           (c.unread ? '<b class="badge">' + c.unread + "</b>" : "") +
           "</a>";
-      }).join("") : '<p class="sub center-text" style="padding:24px 16px">ماكو رسائل بعد.</p>';
+      }).join("") : '<p class="sub center-text" style="padding:24px 16px">ماكو رسائل بعد. اضغط "محادثة جديدة" حتى تبدي.</p>';
       pollUnread();
     }).catch(function () { loading(false); $("inbox-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب الرسائل.</p>'; });
   }
 
+  // ----- new chat / add members picker -----
+  var picker = { mode: "new", chosen: {} };
+  function openPicker(mode) {
+    picker = { mode: mode, chosen: {} };
+    var add = mode === "add";
+    $("new-title").textContent = add ? "إضافة أعضاء" : "محادثة جديدة";
+    $("new-sub").textContent = add ? "اختار الطلاب اللي تريد تضيفهم لـ " + (chat.info ? chat.info.name : "المجموعة") + "." : "اختار طالب حتى تراسله، أو أكثر من طالب حتى تسوي مجموعة.";
+    $("new-back").setAttribute("href", add ? "#gchat/" + chat.other : "#inbox");
+    $("new-search").value = ""; $("group-name").value = "";
+    loadMembers().then(renderPicker).catch(function () { $("new-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب الأسماء.</p>'; });
+    renderPicker();
+  }
+  function renderPicker() {
+    var q = $("new-search").value.trim();
+    var inGroup = {};
+    if (picker.mode === "add" && chat.info) (chat.info.members || []).forEach(function (m) { inGroup[m.id] = true; });
+    var list = (state.members || []).filter(function (m) { return (!state.me || m.id !== state.me.id) && !inGroup[m.id]; })
+      .filter(function (m) { return !q || m.name.indexOf(q) !== -1; });
+    $("new-list").innerHTML = list.map(function (m) {
+      var on = !!picker.chosen[m.id];
+      return '<button type="button" class="pick' + (on ? " on" : "") + '" data-pick="' + m.id + '">' + avatar(m) +
+        '<span class="nm">' + esc(m.name) + "</span>" + (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
+        '<span class="check">' + (on ? '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : "") + "</span></button>";
+    }).join("") || '<p class="sub center-text" style="padding:16px">' + (q ? "ماكو اسم بهذا البحث" : "ماكو طلاب") + "</p>";
+    var ids = Object.keys(picker.chosen);
+    $("pick-bar").hidden = !ids.length;
+    var names = ids.map(function (id) { return picker.chosen[id].split(" ")[0]; });
+    $("pick-chosen").textContent = ids.length + " مختارين: " + names.join("، ");
+    var group = picker.mode === "new" && ids.length > 1;
+    $("group-name").hidden = !group;
+    $("pick-go").textContent = picker.mode === "add" ? "إضافة" : group ? "إنشاء مجموعة" : "مراسلة";
+  }
+  function onPick(e) {
+    var b = e.target.closest("[data-pick]"); if (!b) return;
+    var id = b.dataset.pick, m = (state.members || []).filter(function (x) { return String(x.id) === id; })[0];
+    if (picker.chosen[id]) delete picker.chosen[id]; else picker.chosen[id] = m ? m.name : "";
+    renderPicker();
+    if (!$("group-name").hidden && Object.keys(picker.chosen).length === 2) $("group-name").focus();
+  }
+  function onPickGo() {
+    var ids = Object.keys(picker.chosen).map(Number);
+    if (!ids.length) return;
+    if (picker.mode === "add") {
+      loading(true);
+      rpc("a9_group_add", { p_token: getToken(), p_group: chat.other, p_members: ids }).then(function (res) {
+        loading(false);
+        if (res && res.ok) location.hash = "gchat/" + chat.other; else alert("ما انضافوا.");
+      }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
+      return;
+    }
+    if (ids.length === 1) { location.hash = "chat/" + ids[0]; return; }
+    var name = $("group-name").value.trim();
+    if (!name) { $("group-name").focus(); alert("اكتب اسم للمجموعة."); return; }
+    loading(true);
+    rpc("a9_group_create", { p_token: getToken(), p_name: name, p_members: ids }).then(function (res) {
+      loading(false);
+      if (res && res.ok) location.hash = "gchat/" + res.id; else alert("ما انسوت المجموعة.");
+    }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
+  }
+
   function bubble(m) {
-    return '<div class="msg ' + (m.mine ? "me" : "them") + '" data-id="' + m.id + '">' +
+    var who = "";
+    if (chat.kind === "group" && !m.mine && m.sender !== chat.lastSender) who = '<div class="msg-who">' + esc(m.sender_name || "") + "</div>";
+    chat.lastSender = m.mine ? null : m.sender;
+    return '<div class="msg ' + (m.mine ? "me" : "them") + '" data-id="' + m.id + '">' + who +
       '<div class="bubble">' + esc(m.body).replace(/\n/g, "<br>") + "</div>" +
       '<div class="msg-time">' + timeLabel(m.created_at) + (m.mine && m.read_at ? " &middot; مقروءة" : "") + "</div></div>";
   }
 
   function fetchChat(first) {
     if (!chat.other) return;
-    var other = chat.other;
-    return rpc("a9_messages", { p_token: getToken(), p_other: other, p_after: first ? 0 : chat.lastId }).then(function (rows) {
-      if (chat.other !== other) return;
+    var other = chat.other, kind = chat.kind;
+    var req = kind === "group"
+      ? rpc("a9_group_messages", { p_token: getToken(), p_group: other, p_after: first ? 0 : chat.lastId })
+      : rpc("a9_messages", { p_token: getToken(), p_other: other, p_after: first ? 0 : chat.lastId });
+    return req.then(function (rows) {
+      if (chat.other !== other || chat.kind !== kind) return;
+      if (first) chat.lastSender = null;
       rows = rows || [];
       var box = $("chat-msgs");
       var nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -438,9 +519,11 @@
   function openChat(id) {
     var m = (state.members || []).filter(function (x) { return x.id === id; })[0];
     var go = function (person) {
-      chat.other = id; chat.lastId = 0;
+      chat.kind = "dm"; chat.other = id; chat.lastId = 0; chat.info = null;
+      $("chat-avatar").classList.remove("group-av");
       paintAvatar($("chat-avatar"), person || { id: id, name: "?" });
       $("chat-name").textContent = person ? person.name : "";
+      $("chat-subline").textContent = "";
       $("chat-msgs").innerHTML = "";
       $("chat-input").value = "";
       fetchChat(true).then(pollUnread).catch(function () {
@@ -453,7 +536,38 @@
     else loadMembers(true).then(function (all) { go(all.filter(function (x) { return x.id === id; })[0]); });
   }
 
-  function closeChat() { clearInterval(chat.timer); chat.timer = null; chat.other = null; }
+  function openGroupChat(id) {
+    chat.kind = "group"; chat.other = id; chat.lastId = 0; chat.info = null;
+    var av = $("chat-avatar"); av.className = "avatar group-av"; av.innerHTML = GROUP_ICON; av.style.removeProperty("--h");
+    $("chat-name").textContent = ""; $("chat-subline").textContent = "";
+    $("chat-msgs").innerHTML = ""; $("chat-input").value = "";
+    loadMembers().catch(function () {});
+    rpc("a9_group_info", { p_token: getToken(), p_group: id }).then(function (info) {
+      if (chat.other !== id) return;
+      chat.info = info;
+      $("chat-name").textContent = info.name;
+      $("chat-subline").textContent = (info.members || []).length + " أعضاء · اضغط للتفاصيل";
+    }).catch(function () { $("chat-msgs").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نفتح المجموعة.</p>'; });
+    fetchChat(true).then(pollUnread).catch(function () {});
+    clearInterval(chat.timer);
+    chat.timer = setInterval(function () { if (!document.hidden) fetchChat(false); }, 4000);
+  }
+
+  function openGroupInfo() {
+    if (chat.kind !== "group" || !chat.info) return;
+    var info = chat.info, mem = state.members || [];
+    $("ginfo-name").textContent = info.name;
+    $("ginfo-count").textContent = (info.members || []).length + " أعضاء";
+    $("ginfo-members").innerHTML = (info.members || []).map(function (m) {
+      var full = mem.filter(function (x) { return x.id === m.id; })[0] || m;
+      return '<div class="cmember">' + avatar(full) + '<span class="nm">' + esc(m.name) + "</span>" +
+        (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") + (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") + "</div>";
+    }).join("");
+    $("ginfo").hidden = false;
+  }
+  function closeGroupInfo() { $("ginfo").hidden = true; }
+
+  function closeChat() { clearInterval(chat.timer); chat.timer = null; chat.other = null; chat.info = null; }
 
   function sendMessage(e) {
     e.preventDefault();
@@ -461,7 +575,10 @@
     var body = input.value.trim();
     if (!body || chat.sending || !chat.other) return;
     chat.sending = true;
-    rpc("a9_send", { p_token: getToken(), p_to: chat.other, p_body: body }).then(function (res) {
+    var call = chat.kind === "group"
+      ? rpc("a9_group_send", { p_token: getToken(), p_group: chat.other, p_body: body })
+      : rpc("a9_send", { p_token: getToken(), p_to: chat.other, p_body: body });
+    call.then(function (res) {
       chat.sending = false;
       if (res && res.ok) { input.value = ""; autoGrow(); fetchChat(false); }
       else alert("ما انرسلت الرسالة.");
@@ -479,12 +596,13 @@
     register: "تسجيل جديد", login: "تسجيل دخول", login_failed: "رقم سري غلط", locked: "انقفل الحساب",
     logout: "تسجيل خروج", avatar: "غيّر صورته", avatar_removed: "حذف صورته", pin_changed: "غيّر رقمه السري",
     pin_reset: "صفّر رقم سري", message: "رسالة",
+    group_create: "سوّى مجموعة محادثة", group_add: "ضاف أعضاء لمجموعة", group_leave: "طلع من مجموعة", group_message: "رسالة بمجموعة",
     consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
     consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
     group_photo: "غيّر صورة المجموعة", group_photo_removed: "حذف صورة المجموعة"
   };
   var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"]];
-  var LOG_GROUP = { message: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
+  var LOG_GROUP = { message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
                     avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
                     group_photo: "account", group_photo_removed: "account",
                     consult_join: "account", consult_leave: "account", consult_add: "account", consult_assign: "account",
@@ -497,6 +615,8 @@
     var text;
     if (e.kind === "message") text = "<b>" + who + "</b> راسل <b>" + esc(e.target || "") + "</b>";
     else if (e.kind === "pin_reset") text = "<b>" + who + "</b> صفّر الرقم السري لـ <b>" + esc(e.target || "") + "</b>";
+    else if (e.kind === "group_message") text = "<b>" + who + "</b> كتب بمجموعة";
+    else if (e.kind === "group_create" || e.kind === "group_add" || e.kind === "group_leave") text = "<b>" + who + "</b> &middot; " + what + ' "' + esc(e.detail || "") + '"';
     else if (e.kind === "consult_add") text = "<b>" + who + "</b> ضاف <b>" + esc(e.target || "") + "</b> لـ" + esc(e.detail || "");
     else if (e.kind === "consult_assign") text = "<b>" + who + "</b> حط <b>" + esc(e.target || "") + "</b> بـ" + esc(e.detail || "");
     else if (e.kind === "consult_join" || e.kind === "consult_leave") text = "<b>" + who + "</b> &middot; " + what + " (" + esc(e.detail || "") + ")";
@@ -504,7 +624,7 @@
     return '<div class="ev ev-' + (LOG_GROUP[e.kind] || "other") + '">' +
       '<span class="ev-dot"></span>' +
       '<div class="ev-main"><div class="ev-text">' + text + "</div>" +
-      (e.kind === "message" && e.detail ? '<div class="ev-detail">' + esc(e.detail) + "</div>" : "") +
+      ((e.kind === "message" || e.kind === "group_message") && e.detail ? '<div class="ev-detail">' + esc(e.detail) + "</div>" : "") +
       '<div class="ev-time">' + new Date(e.at).toLocaleString("ar-IQ", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) + "</div></div></div>";
   }
 
@@ -551,8 +671,13 @@
     if (!state.me) return showLogin();
     var parts = location.hash.replace("#", "").split("/");
     var h = parts[0];
-    if (h !== "chat") closeChat();
+    var addingToGroup = h === "new" && parts[1] === "add" && chat.kind === "group" && chat.other;
+    if (h !== "chat" && h !== "gchat" && !addingToGroup) closeChat();
+    if (addingToGroup) { clearInterval(chat.timer); chat.timer = null; }
+    if (h !== "gchat") closeGroupInfo();
     if (h === "chat" && parts[1]) { show("chat"); openChat(Number(parts[1])); return; }
+    if (h === "gchat" && parts[1]) { show("chat"); openGroupChat(Number(parts[1])); return; }
+    if (h === "new") { show("new"); openPicker(parts[1] === "add" ? "add" : "new"); return; }
     if (h === "inbox") { show("inbox"); openInbox(); return; }
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "ent") { show("ent"); openEnt(); return; }
@@ -1008,6 +1133,20 @@
     var id = $("person-chat").dataset.id; closePerson(); closeDrawer(); location.hash = "chat/" + id;
   });
   $("chat-form").addEventListener("submit", sendMessage);
+  $("chat-who-btn").addEventListener("click", function () {
+    if (chat.kind === "group") openGroupInfo();
+    else if (chat.other) { loadMembers().then(function () { openPerson(chat.other); $("person-chat").hidden = true; }); }
+  });
+  $("new-search").addEventListener("input", renderPicker);
+  $("new-list").addEventListener("click", onPick);
+  $("pick-go").addEventListener("click", onPickGo);
+  $("ginfo-close").addEventListener("click", closeGroupInfo);
+  $("ginfo").addEventListener("click", function (e) { if (e.target === $("ginfo")) closeGroupInfo(); });
+  $("ginfo-add").addEventListener("click", function () { closeGroupInfo(); location.hash = "new/add"; });
+  $("ginfo-leave").addEventListener("click", function () {
+    if (!confirm("تطلع من المجموعة؟ ما راح توصلك رسائلها.")) return;
+    rpc("a9_group_leave", { p_token: getToken(), p_group: chat.other }).then(function () { closeGroupInfo(); location.hash = "inbox"; });
+  });
   $("chat-input").addEventListener("input", autoGrow);
   $("chat-input").addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey && !/iphone|ipad|android/i.test(navigator.userAgent)) { e.preventDefault(); sendMessage(e); }

@@ -844,3 +844,43 @@ a.done-card:hover { transform: translateY(-2px); border-color: var(--primary); }
   .p-empty { text-align: center; color: #777; }
   .p-un { margin-top: 6mm; font-size: 10pt; }
 }
+
+/* ---------- محادثة جديدة ومجموعات ---------- */
+.inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.btn.new-chat-btn { width: auto; padding: 8px 18px; font-size: .95rem; text-decoration: none; }
+.avatar.group-av { background: linear-gradient(135deg, #0f172a, #334155); color: #fff; }
+.avatar.group-av svg { width: 58%; height: 58%; fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.conv .avatar.group-av { width: 46px; height: 46px; }
+
+.pick-list { margin-bottom: 140px; }
+.pick {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 16px;
+  font: inherit; color: var(--text); text-align: start; cursor: pointer; background: none; border: 0; border-top: 1px solid var(--border);
+}
+.pick:first-child { border-top: 0; }
+.pick .nm { flex: 1; font-weight: 700; }
+.pick .tag { font-size: .75rem; padding: 0 8px; }
+.pick .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; flex-shrink: 0; }
+.pick.on { background: color-mix(in srgb, var(--primary-soft) 60%, transparent); }
+.pick.on .check { background: var(--primary); border-color: var(--primary); }
+.pick .check svg { width: 15px; height: 15px; fill: none; stroke: var(--on-primary); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.pick-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--surface);
+  border-top: 1px solid var(--border); box-shadow: 0 -8px 24px rgba(15, 23, 42, .08);
+  display: flex; flex-direction: column; gap: 8px; max-width: 520px; margin: 0 auto;
+}
+.pick-bar[hidden] { display: none; }
+.pick-bar .input { margin: 0; }
+.pick-chosen { font-size: .85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.chat-who-btn { flex: 1; display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; font: inherit; color: var(--text); cursor: pointer; text-align: start; min-width: 0; }
+.chat-who { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+.chat-subline { font-size: .78rem; color: var(--muted); }
+.chat-subline:empty { display: none; }
+.msg-who { font-size: .76rem; font-weight: 800; color: var(--primary); margin: 4px 8px 1px; }
+
+.ginfo-card { max-height: 86vh; overflow-y: auto; }
+.ginfo-card .avatar.huge.group-av { width: 96px; height: 96px; margin: 0 auto; }
+.ginfo-members { text-align: start; margin: 10px 0 4px; max-height: 40vh; overflow-y: auto; }
+.ginfo-card .btn.outline-danger { margin-top: 8px; }

@@ -1,0 +1,4 @@
+-- منصة A9: المحادثات الجماعية (انطبق على القاعدة مباشرة)
+-- الجداول: private.chat_groups و private.chat_group_members و private.group_messages
+-- الدوال: a9_group_create و a9_group_add و a9_group_leave و a9_group_info و a9_group_messages و a9_group_send و a9_group_list
+-- و a9_unread صارت تحسب رسائل المجموعات هم. المغادرة تعلّم left_at بدل الحذف.
