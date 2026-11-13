@@ -288,7 +288,7 @@
     var all = state.members || [];
     var joined = all.filter(function (m) { return m.joined; }).length;
     $("members-sub").textContent = all.length;
-    $("drawer-sub").textContent = all.length + " طالب · سجّل منهم " + joined;
+    $("drawer-sub").textContent = all.length + " طالب" + (state.me && state.me.is_admin ? " · سجّل منهم " + joined : "");
     var rows = all.filter(function (m) { return !q || m.name.indexOf(q) !== -1; });
     $("members-list").innerHTML = rows.map(function (m) {
       return '<button type="button" class="mrow' + (m.is_admin ? " rep" : "") + '" data-member="' + m.id + '">' +
