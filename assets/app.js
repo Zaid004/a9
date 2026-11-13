@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -479,12 +479,16 @@
     register: "تسجيل جديد", login: "تسجيل دخول", login_failed: "رقم سري غلط", locked: "انقفل الحساب",
     logout: "تسجيل خروج", avatar: "غيّر صورته", avatar_removed: "حذف صورته", pin_changed: "غيّر رقمه السري",
     pin_reset: "صفّر رقم سري", message: "رسالة",
+    consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
+    consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
     group_photo: "غيّر صورة المجموعة", group_photo_removed: "حذف صورة المجموعة"
   };
   var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"]];
   var LOG_GROUP = { message: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
                     avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
-                    group_photo: "account", group_photo_removed: "account" };
+                    group_photo: "account", group_photo_removed: "account",
+                    consult_join: "account", consult_leave: "account", consult_add: "account", consult_assign: "account",
+                    consult_lock: "account", consult_unlock: "account" };
   var logState = { rows: [], filter: "all", oldest: null };
 
   function logLine(e) {
@@ -493,6 +497,9 @@
     var text;
     if (e.kind === "message") text = "<b>" + who + "</b> راسل <b>" + esc(e.target || "") + "</b>";
     else if (e.kind === "pin_reset") text = "<b>" + who + "</b> صفّر الرقم السري لـ <b>" + esc(e.target || "") + "</b>";
+    else if (e.kind === "consult_add") text = "<b>" + who + "</b> ضاف <b>" + esc(e.target || "") + "</b> لـ" + esc(e.detail || "");
+    else if (e.kind === "consult_assign") text = "<b>" + who + "</b> حط <b>" + esc(e.target || "") + "</b> بـ" + esc(e.detail || "");
+    else if (e.kind === "consult_join" || e.kind === "consult_leave") text = "<b>" + who + "</b> &middot; " + what + " (" + esc(e.detail || "") + ")";
     else text = "<b>" + who + "</b> &middot; " + what;
     return '<div class="ev ev-' + (LOG_GROUP[e.kind] || "other") + '">' +
       '<span class="ev-dot"></span>' +
@@ -549,6 +556,8 @@
     if (h === "inbox") { show("inbox"); openInbox(); return; }
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "ent") { show("ent"); openEnt(); return; }
+    if (h === "rot-gyn") { show("rot-gyn"); openRotGyn(); return; }
+    if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); }
     else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
@@ -697,6 +706,136 @@
     }).catch(function () { loading(false); gpMsg("صار خطأ بالاتصال."); });
   }
 
+  // ---------- consultation groups ----------
+  var CAP = { F: 5, M: 4, total: 8 };
+  var consult = null;
+  var CONSULT_ERR = {
+    locked: "المجاميع تثبتت، ما تگدر تبدل. راجع الممثل.",
+    full: "هالمجموعة تعبت لجنسك.",
+    already_in_group: "هذا الطالب صار بمجموعة.",
+    not_in_group: "لازم تنضم لمجموعة أول.",
+    bad_friend: "تگدر تضيف بس من نفس جنسك."
+  };
+
+  function openRotGyn() {
+    var s = window.A9_gynSummary();
+    $("rot-gyn-sub").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
+    rpc("a9_consult_view", { p_token: getToken() }).then(function (v) {
+      $("tile-consult-sub").textContent = v.my_group ? "إنت بالمجموعة " + v.my_group : (v.locked ? "المجاميع تثبتت" : "اختار مجموعتك");
+    }).catch(function () {});
+  }
+
+  function consultLoad() {
+    return rpc("a9_consult_view", { p_token: getToken() }).then(function (v) { consult = v; renderConsult(); });
+  }
+  function openConsult() {
+    $("consult-groups").innerHTML = "";
+    $("consult-status").innerHTML = "";
+    $("friend-search").value = "";
+    loading(true);
+    consultLoad().then(function () { loading(false); }).catch(function () {
+      loading(false);
+      $("consult-groups").innerHTML = '<p class="error">ما گدرنا نجيب المجاميع.</p>';
+    });
+  }
+
+  function consultCall(fn, args, okMsg) {
+    loading(true);
+    args.p_token = getToken();
+    return rpc(fn, args).then(function (res) {
+      loading(false);
+      if (res && res.ok) return consultLoad();
+      alert(CONSULT_ERR[res && res.error] || "ما صار، جرب مرة ثانية.");
+      return consultLoad();
+    }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
+  }
+
+  function renderConsult() {
+    var v = consult, admin = v.is_admin, g = v.my_gender;
+    var other = g === "F" ? "ولد" : "بنات";
+    // status
+    $("consult-status").innerHTML =
+      (v.locked ? '<div class="cstat locked">المجاميع تثبتت</div>' : '<div class="cstat open">الاختيار مفتوح</div>') +
+      (v.my_group ? '<div class="cstat mine">إنت بالمجموعة ' + v.my_group + "</div>" : '<div class="cstat none">بعدك ما اخترت مجموعة</div>');
+
+    // groups
+    $("consult-groups").innerHTML = v.groups.map(function (gr) {
+      var mine = v.my_group === gr.no;
+      var myCount = g === "F" ? gr.girls : gr.boys;
+      var room = myCount < CAP[g] && gr.girls + gr.boys < CAP.total;
+      var btn = "";
+      if (!v.locked) {
+        if (mine) btn = '<button type="button" class="cbtn leave" data-leave="1">مغادرة</button>';
+        else if (room) btn = '<button type="button" class="cbtn join" data-join="' + gr.no + '">' + (v.my_group ? "انتقال لهنا" : "انضمام") + "</button>";
+        else btn = '<span class="cfull">تعبت</span>';
+      }
+      var members = gr.members.map(function (m) {
+        var sel = admin ? '<select class="cmove" data-move="' + m.id + '">' +
+          [1, 2, 3, 4].map(function (n) { return '<option value="' + n + '"' + (n === gr.no ? " selected" : "") + ">" + n + "</option>"; }).join("") +
+          '<option value="">برة</option></select>' : "";
+        return '<div class="cmember' + (admin ? " g-" + m.gender : "") + '">' + avatar(m) + '<span class="nm">' + esc(m.name) + "</span>" +
+          (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") + (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") + sel + "</div>";
+      }).join("");
+      var counts = admin
+        ? '<span class="chip-n">بنات ' + gr.girls + "/" + CAP.F + '</span><span class="chip-n">ولد ' + gr.boys + "/" + CAP.M + "</span>"
+        : '<span class="chip-n">' + (g === "F" ? "بنات " + gr.girls + "/" + CAP.F : "ولد " + gr.boys + "/" + CAP.M) + '</span><span class="chip-n muted-chip">' + other + " " + (g === "F" ? gr.boys : gr.girls) + "</span>";
+      return '<section class="cgroup' + (mine ? " mine" : "") + '">' +
+        '<div class="cg-head"><b>المجموعة ' + gr.no + "</b>" + btn + "</div>" +
+        '<div class="cg-counts">' + counts + "</div>" +
+        '<div class="cg-members">' + (members || '<p class="note" style="margin:6px 0">' + (admin ? "ماكو أحد بعد" : "ماكو " + (g === "F" ? "بنات" : "ولد") + " بعد") + "</p>") + "</div>" +
+        "</section>";
+    }).join("");
+
+    // friends
+    var canAdd = !v.locked && v.my_group;
+    $("consult-friends").hidden = !canAdd || admin;
+    if (canAdd && !admin) renderFriends();
+
+    // admin panel
+    $("consult-admin").hidden = !admin;
+    if (admin) {
+      var un = v.unassigned;
+      $("consult-admin").innerHTML =
+        '<h2 class="card-title">إدارة المجاميع</h2>' +
+        '<button type="button" class="btn ' + (v.locked ? "ghost" : "") + '" data-lock="' + (v.locked ? "0" : "1") + '">' + (v.locked ? "فتح المجاميع للتبديل" : "تثبيت المجاميع") + "</button>" +
+        '<h3 class="sub-title">ما اختاروا (' + un.length + ")</h3>" +
+        (un.length ? un.map(function (s) {
+          return '<div class="cmember g-' + s.gender + '">' + avatar(s) + '<span class="nm">' + esc(s.name) + "</span>" +
+            '<select class="cmove" data-move="' + s.id + '"><option value="" selected>وزّع</option>' +
+            [1, 2, 3, 4].map(function (n) { return '<option value="' + n + '">' + n + "</option>"; }).join("") + "</select></div>";
+        }).join("") : '<p class="note">الكل اختاروا.</p>');
+    }
+  }
+
+  function renderFriends() {
+    var mine = consult.groups.filter(function (x) { return x.no === consult.my_group; })[0];
+    var g = consult.my_gender;
+    var full = mine && ((g === "F" ? mine.girls : mine.boys) >= CAP[g] || mine.girls + mine.boys >= CAP.total);
+    $("friend-search").hidden = !!full;
+    if (full) { $("friend-list").innerHTML = '<p class="note">مجموعتك تعبت، ما تگدر تضيف أكثر.</p>'; return; }
+    var q = $("friend-search").value.trim();
+    var list = consult.unassigned.filter(function (s) { return !q || s.name.indexOf(q) !== -1; });
+    $("friend-list").innerHTML = list.length ? list.map(function (s) {
+      return '<div class="cmember">' + avatar(s) + '<span class="nm">' + esc(s.name) + '</span><button type="button" class="cbtn join" data-add="' + s.id + '">إضافة</button></div>';
+    }).join("") : '<p class="note">' + (q ? "ماكو اسم بهذا البحث" : "الكل منضمين لمجاميع") + "</p>";
+  }
+
+  function onConsultClick(e) {
+    var b = e.target.closest("button"); if (!b || !consult) return;
+    if (b.dataset.join) consultCall("a9_consult_join", { p_group: Number(b.dataset.join) });
+    else if (b.dataset.leave) { if (confirm("تطلع من مجموعتك؟")) consultCall("a9_consult_leave", {}); }
+    else if (b.dataset.add) consultCall("a9_consult_add_friend", { p_friend: Number(b.dataset.add) });
+    else if (b.dataset.lock) {
+      var lock = b.dataset.lock === "1";
+      if (confirm(lock ? "تثبت المجاميع؟ ما أحد يگدر يبدل بعدها." : "تفتح المجاميع للتبديل؟")) consultCall("a9_admin_consult_lock", { p_locked: lock });
+    }
+  }
+  function onConsultMove(e) {
+    var s = e.target.closest("select.cmove"); if (!s) return;
+    var g = s.value === "" ? null : Number(s.value);
+    consultCall("a9_admin_consult_assign", { p_student: Number(s.dataset.move), p_group: g });
+  }
+
   // ---------- grades ----------
   var myGrades = null;
   function fmtGrade(g) {
@@ -783,6 +922,9 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
+  $("consult").addEventListener("click", onConsultClick);
+  $("consult").addEventListener("change", onConsultMove);
+  $("friend-search").addEventListener("input", function () { if (consult) renderFriends(); });
   $("gp-input").addEventListener("change", onGroupPhotos);
   $("gp-grid").addEventListener("click", function (e) { var b = e.target.closest("[data-del]"); if (b) removeGroupPhoto(Number(b.dataset.del)); });
   bindGalleryHold();

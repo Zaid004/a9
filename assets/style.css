@@ -748,3 +748,49 @@ a.done-card:hover { transform: translateY(-2px); border-color: var(--primary); }
 
 .done-mark svg { width: 28px; height: 28px; fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .done-mark svg .fill { fill: #fff; stroke: none; }
+
+/* ---------- قائمة الروتة ---------- */
+.menu-tiles { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.tile {
+  display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 20px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+  color: var(--text); text-decoration: none; transition: transform .2s, border-color .2s;
+}
+.tile:hover { transform: translateY(-2px); border-color: var(--primary); }
+.tile-ico { width: 50px; height: 50px; border-radius: 15px; display: grid; place-items: center; background: linear-gradient(135deg, #be185d, #f472b6); flex-shrink: 0; }
+.tile-ico svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.tile-main { flex: 1; display: flex; flex-direction: column; line-height: 1.5; }
+.tile-main span { font-size: .86rem; color: var(--muted); }
+.tile .chev { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- مجموعات الاستشارية ---------- */
+.consult-status { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.cstat { font-size: .85rem; font-weight: 800; padding: 3px 12px; border-radius: 999px; }
+.cstat.open { background: var(--preg-bg); color: var(--preg); }
+.cstat.locked { background: var(--exam-bg); color: var(--exam); }
+.cstat.mine { background: var(--primary); color: var(--on-primary); }
+.cstat.none { background: var(--cons-bg); color: var(--cons); }
+.consult-groups { display: grid; gap: 12px; margin-bottom: 14px; }
+.cgroup { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 14px 16px; box-shadow: var(--shadow); }
+.cgroup.mine { border: 2px solid var(--primary); }
+.cg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cg-head b { font-size: 1.1rem; }
+.cg-counts { display: flex; gap: 6px; margin: 8px 0 6px; flex-wrap: wrap; }
+.chip-n { font-size: .8rem; font-weight: 700; padding: 1px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); }
+.chip-n.muted-chip { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+.cmember { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.cg-members .cmember:first-child { border-top: 0; }
+.cmember .avatar { width: 32px; height: 32px; font-size: .75rem; }
+.cmember .nm { flex: 1; font-weight: 700; font-size: .95rem; }
+.cmember .tag { font-size: .72rem; padding: 0 8px; }
+.cmember.g-F .nm::after { content: " · بنية"; color: var(--gyn); font-weight: 400; font-size: .8rem; }
+.cmember.g-M .nm::after { content: " · ولد"; color: var(--lab); font-weight: 400; font-size: .8rem; }
+.cbtn { font: inherit; font-weight: 800; font-size: .88rem; cursor: pointer; border-radius: 10px; padding: 4px 14px; border: 0; }
+.cbtn.join { background: var(--primary); color: var(--on-primary); }
+.cbtn.leave { background: transparent; color: var(--exam); border: 1px solid var(--exam); }
+.cfull { font-size: .82rem; color: var(--muted); font-weight: 700; }
+.cmove { font: inherit; font-size: .85rem; border: 1px solid var(--border); border-radius: 8px; padding: 2px 6px; background: var(--bg); color: var(--text); }
+.consult-admin { margin-bottom: 14px; }
+.sub-title { font-size: .95rem; margin: 16px 0 6px; }
+.friend-list .cmember:first-child { border-top: 0; }
+#consult-friends { margin-bottom: 14px; }
