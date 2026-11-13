@@ -94,7 +94,7 @@
         <div id="gallery-dots" class="gallery-dots"></div>
       </div>
     </section>
-    <a href="#gyn" class="rot-card">
+    <a href="#rot-gyn" class="rot-card">
       <div class="rot-top">
         <span class="rot-title">روتة النسائية</span>
         <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
@@ -140,8 +140,43 @@
   </main>
 
   <!-- روتة النسائية -->
-  <main id="gyn" class="view page" hidden>
+  <!-- قائمة روتة النسائية -->
+  <main id="rot-gyn" class="view page narrow" hidden>
     <a href="#" class="back">رجوع</a>
+    <h1>روتة النسائية والتوليد</h1>
+    <p class="sub" id="rot-gyn-sub"></p>
+    <div class="menu-tiles">
+      <a href="#gyn" class="tile">
+        <span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+        <span class="tile-main"><b>الجدول</b><span>أيام الروتة وأماكنها</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </a>
+      <a href="#consult" class="tile">
+        <span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 6.5-3.1"/></svg></span>
+        <span class="tile-main"><b>مجموعات الاستشارية</b><span id="tile-consult-sub">اختار مجموعتك</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </a>
+    </div>
+  </main>
+
+  <!-- مجموعات الاستشارية -->
+  <main id="consult" class="view page narrow" hidden>
+    <a href="#rot-gyn" class="back">رجوع</a>
+    <h1>مجموعات الاستشارية</h1>
+    <p class="sub">4 مجاميع ثابتة. كل مجموعة 8 طلاب: 5 بنات و4 ولد كحد أعلى.</p>
+    <div id="consult-status" class="consult-status"></div>
+    <div id="consult-admin" class="card consult-admin" hidden></div>
+    <div id="consult-groups" class="consult-groups"></div>
+    <section id="consult-friends" class="card" hidden>
+      <h2 class="card-title">أضف أصدقاءك لمجموعتك</h2>
+      <p class="note" style="margin:0 0 10px">تگدر تضيف بس اللي بعدهم ما منضمين لأي مجموعة.</p>
+      <input id="friend-search" class="input small" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+      <div id="friend-list" class="friend-list"></div>
+    </section>
+  </main>
+
+  <main id="gyn" class="view page" hidden>
+    <a href="#rot-gyn" class="back">رجوع</a>
     <h1>روتة النسائية والتوليد</h1>
     <p class="sub">جدول A9 &middot; وقت السشن 11:30 صباحاً</p>
     <section id="progress" class="progress"></section>
