@@ -487,13 +487,54 @@
     }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
   }
 
+  function memberById(id) { return (state.members || []).filter(function (x) { return x.id === id; })[0]; }
+
   function bubble(m) {
-    var who = "";
-    if (chat.kind === "group" && !m.mine && m.sender !== chat.lastSender) who = '<div class="msg-who">' + esc(m.sender_name || "") + "</div>";
-    chat.lastSender = m.mine ? null : m.sender;
-    return '<div class="msg ' + (m.mine ? "me" : "them") + '" data-id="' + m.id + '">' + who +
-      '<div class="bubble">' + esc(m.body).replace(/\n/g, "<br>") + "</div>" +
-      '<div class="msg-time">' + timeLabel(m.created_at) + (m.mine && m.read_at ? " &middot; مقروءة" : "") + "</div></div>";
+    var time = '<div class="msg-time">' + timeLabel(m.created_at) +
+      (chat.kind !== "group" && m.mine && m.read_at ? " &middot; مقروءة" : "") +
+      (chat.kind === "group" && m.mine ? ' <button type="button" class="reads" data-reads="' + m.id + '"></button>' : "") + "</div>";
+    var body = '<div class="bubble">' + esc(m.body).replace(/\n/g, "<br>") + "</div>";
+    if (chat.kind !== "group" || m.mine) {
+      chat.lastSender = null;
+      return '<div class="msg ' + (m.mine ? "me" : "them") + '" data-id="' + m.id + '">' + body + time + "</div>";
+    }
+    // رسالة من عضو ثاني بالمجموعة: صورته واسمه (أول رسالة من سلسلة رسائله)
+    var first = m.sender !== chat.lastSender;
+    chat.lastSender = m.sender;
+    var person = memberById(m.sender) || { id: m.sender, name: m.sender_name || "" };
+    return '<div class="msg them grp' + (first ? " first" : "") + '" data-id="' + m.id + '">' +
+      (first ? '<button type="button" class="msg-av" data-person="' + m.sender + '" aria-label="' + esc(person.name) + '">' + avatar(person) + "</button>"
+             : '<span class="msg-av-gap"></span>') +
+      '<div class="msg-col">' + (first ? '<button type="button" class="msg-who" data-person="' + m.sender + '">' + esc(m.sender_name || person.name) + "</button>" : "") +
+      body + time + "</div></div>";
+  }
+
+  // منو قرا رسائلي بالمجموعة
+  var groupReads = [];
+  function readersOf(msgId) { return groupReads.filter(function (r) { return r.last_read_id >= msgId; }); }
+  function paintReads() {
+    var total = groupReads.length;
+    Array.prototype.forEach.call(document.querySelectorAll("#chat-msgs .reads"), function (b) {
+      var n = readersOf(Number(b.dataset.reads)).length;
+      b.textContent = !total ? "" : n === 0 ? "ما قراها أحد" : n === total ? "قراها الكل" : "قراها " + n + " من " + total;
+      b.classList.toggle("all", total > 0 && n === total);
+    });
+  }
+  function fetchReads() {
+    if (chat.kind !== "group" || !chat.other) return;
+    var g = chat.other;
+    rpc("a9_group_reads", { p_token: getToken(), p_group: g }).then(function (rows) {
+      if (chat.other !== g) return;
+      groupReads = rows || []; paintReads();
+    }).catch(function () {});
+  }
+  function showReaders(msgId) {
+    var read = readersOf(msgId), notYet = groupReads.filter(function (r) { return r.last_read_id < msgId; });
+    var row = function (r) { var m = memberById(r.id) || r; return '<div class="cmember">' + avatar(m) + '<span class="nm">' + esc(r.name) + "</span></div>"; };
+    $("reads-list").innerHTML =
+      '<h3 class="sub-title">قروها (' + read.length + ")</h3>" + (read.length ? read.map(row).join("") : '<p class="note">بعد محد قراها.</p>') +
+      (notYet.length ? '<h3 class="sub-title">بعد ما قروها (' + notYet.length + ")</h3>" + notYet.map(row).join("") : "");
+    $("reads").hidden = false;
   }
 
   function fetchChat(first) {
@@ -515,6 +556,7 @@
         chat.lastId = rows[rows.length - 1].id;
       }
       if (first || nearBottom) box.scrollTop = box.scrollHeight;
+      if (kind === "group") { paintReads(); fetchReads(); }
     });
   }
 
@@ -539,7 +581,7 @@
   }
 
   function openGroupChat(id) {
-    chat.kind = "group"; chat.other = id; chat.lastId = 0; chat.info = null;
+    chat.kind = "group"; chat.other = id; chat.lastId = 0; chat.info = null; groupReads = [];
     var av = $("chat-avatar"); av.className = "avatar group-av"; av.innerHTML = GROUP_ICON; av.style.removeProperty("--h");
     $("chat-name").textContent = ""; $("chat-subline").textContent = "";
     $("chat-msgs").innerHTML = ""; $("chat-input").value = "";
@@ -1217,6 +1259,14 @@
     var id = $("person-chat").dataset.id; closePerson(); closeDrawer(); location.hash = "chat/" + id;
   });
   $("chat-form").addEventListener("submit", sendMessage);
+  $("chat-msgs").addEventListener("click", function (e) {
+    var p = e.target.closest("[data-person]");
+    if (p) { var id = Number(p.dataset.person); loadMembers().then(function () { openPerson(id); }); return; }
+    var r = e.target.closest("[data-reads]");
+    if (r) showReaders(Number(r.dataset.reads));
+  });
+  $("reads-close").addEventListener("click", function () { $("reads").hidden = true; });
+  $("reads").addEventListener("click", function (e) { if (e.target === $("reads")) $("reads").hidden = true; });
   $("chat-who-btn").addEventListener("click", function () {
     if (chat.kind === "group") openGroupInfo();
     else if (chat.other) { loadMembers().then(function () { openPerson(chat.other); $("person-chat").hidden = true; }); }
