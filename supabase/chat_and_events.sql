@@ -77,7 +77,7 @@ create or replace function public.a9_logout(p_token uuid)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_id int := private.session_student(p_token);
 begin
-  delete from private.sessions where token = p_token;
+  update private.sessions set expires_at = now() where token = p_token;
   if v_id is not null then perform private.log(v_id, 'logout'); end if;
 end $$;
 
@@ -117,7 +117,7 @@ begin
     return json_build_object('ok', false, 'error', 'not_admin');
   end if;
   update private.students set pin_hash = null, failed = 0, locked_until = null where id = p_student;
-  delete from private.sessions where student_id = p_student;
+  update private.sessions set expires_at = now() where student_id = p_student and expires_at > now();
   perform private.log(v_admin, 'pin_reset', p_student);
   return json_build_object('ok', true);
 end $$;
