@@ -22,8 +22,35 @@
       <a href="#me" id="me-btn" class="me-btn" aria-label="حسابي" hidden></a>
     </div>
     <a href="#" class="brand">مجموعة A9</a>
-    <div class="tb-side"></div>
+    <div class="tb-side end">
+      <button type="button" id="menu-btn" class="menu-btn" aria-label="القائمة" aria-controls="drawer" aria-expanded="false" hidden>
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   </header>
+
+  <!-- القائمة الجانبية -->
+  <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <img src="icons/icon-192.png" alt="" class="drawer-logo" />
+      <div><b>مجموعة A9</b><span id="drawer-sub"></span></div>
+      <button type="button" id="drawer-close" class="drawer-close" aria-label="إغلاق">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <nav class="drawer-nav">
+      <a href="#" data-nav="home">الرئيسية</a>
+      <a href="#gyn" data-nav="gyn">روتة النسائية</a>
+      <a href="#me" data-nav="me">حسابي</a>
+      <a href="#admin" data-nav="admin" id="nav-admin" hidden>صفحة الإدارة</a>
+    </nav>
+    <div class="drawer-section">
+      <div class="drawer-title"><span>المشاركين</span><span id="members-sub" class="count"></span></div>
+      <input id="members-search" class="input small" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+    </div>
+    <div id="members-list" class="drawer-list"></div>
+  </aside>
 
   <!-- تسجيل الدخول -->
   <main id="login" class="view page narrow" hidden>
@@ -60,11 +87,6 @@
       <div class="bar light"><i id="rot-bar"></i></div>
       <div class="rot-count" id="rot-count"></div>
     </a>
-    <a href="#members" class="mini-card">
-      <div class="mini-avatars" id="mini-avatars"></div>
-      <div class="mini-text"><b>المشاركين</b><span id="mini-count"></span></div>
-      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-    </a>
   </main>
 
   <!-- روتة النسائية -->
@@ -76,15 +98,6 @@
     <section id="next" class="next"></section>
     <h2>الجدول الكامل</h2>
     <div id="list" class="list"></div>
-  </main>
-
-  <!-- المشاركين -->
-  <main id="members" class="view page narrow" hidden>
-    <a href="#" class="back">رجوع</a>
-    <h1>المشاركين</h1>
-    <p class="sub" id="members-sub"></p>
-    <input id="members-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
-    <div id="members-list" class="list"></div>
   </main>
 
   <div id="person" class="sheet" hidden>
