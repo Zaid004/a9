@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "members"].forEach(function (v) { $(v).hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me"].forEach(function (v) { $(v).hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -139,6 +139,7 @@
   // ---------- session ----------
   function afterLogin() {
     $("me-btn").hidden = false;
+    $("menu-btn").hidden = false;
     paintAvatar($("me-btn"), state.me);
     backToNames();
     route();
@@ -149,6 +150,8 @@
     setToken(null);
     state.me = null; state.members = null;
     $("me-btn").hidden = true;
+    $("menu-btn").hidden = true;
+    closeDrawer();
     if (t) rpc("a9_logout", { p_token: t }).catch(function () {});
     location.hash = "";
     showLogin();
@@ -282,7 +285,8 @@
     var q = $("members-search").value.trim();
     var all = state.members || [];
     var joined = all.filter(function (m) { return m.joined; }).length;
-    $("members-sub").textContent = all.length + " طالب · سجّل منهم " + joined;
+    $("members-sub").textContent = all.length;
+    $("drawer-sub").textContent = all.length + " طالب · سجّل منهم " + joined;
     var rows = all.filter(function (m) { return !q || m.name.indexOf(q) !== -1; });
     $("members-list").innerHTML = rows.map(function (m) {
       return '<button type="button" class="mrow' + (m.is_admin ? " rep" : "") + '" data-member="' + m.id + '">' +
@@ -294,12 +298,25 @@
     }).join("") || '<p class="sub center-text" style="padding:16px">ماكو اسم بهذا البحث</p>';
   }
 
-  function openMembers() {
-    $("members-search").value = "";
-    if (state.members) renderMembers(); else $("members-list").innerHTML = "";
-    loading(true);
-    loadMembers(true).then(function () { loading(false); renderMembers(); })
-      .catch(function () { loading(false); $("members-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب القائمة.</p>'; });
+  // ---------- side menu ----------
+  function openDrawer() {
+    document.body.classList.add("drawer-open");
+    $("drawer").setAttribute("aria-hidden", "false");
+    $("menu-btn").setAttribute("aria-expanded", "true");
+    $("drawer-backdrop").hidden = false;
+    var h = location.hash.replace("#", "") || "home";
+    document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.dataset.nav === h); });
+    $("nav-admin").hidden = !(state.me && state.me.is_admin);
+    if (state.members) renderMembers();
+    loadMembers(true).then(renderMembers).catch(function () {
+      $("members-list").innerHTML = '<p class="error" style="margin:12px 16px">ما گدرنا نجيب القائمة.</p>';
+    });
+  }
+  function closeDrawer() {
+    document.body.classList.remove("drawer-open");
+    $("drawer").setAttribute("aria-hidden", "true");
+    $("menu-btn").setAttribute("aria-expanded", "false");
+    $("drawer-backdrop").hidden = true;
   }
 
   function openPerson(id) {
@@ -311,15 +328,6 @@
     $("person").hidden = false;
   }
   function closePerson() { $("person").hidden = true; }
-
-  function renderMini() {
-    loadMembers().then(function (all) {
-      var withPhoto = all.filter(function (m) { return m.avatar; });
-      var pick = withPhoto.concat(all.filter(function (m) { return !m.avatar; })).slice(0, 4);
-      $("mini-avatars").innerHTML = pick.map(function (m) { return avatar(m); }).join("");
-      $("mini-count").textContent = all.length + " طالب";
-    }).catch(function () { $("mini-count").textContent = ""; });
-  }
 
   // ---------- install to home screen ----------
   var installEvt = null;
@@ -346,12 +354,10 @@
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); }
     else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
-    else if (h === "members") { show("members"); openMembers(); }
     else { show("home"); renderHome(); }
   }
 
   function renderHome() {
-    renderMini();
     var s = window.A9_gynSummary();
     $("rot-bar").style.width = Math.round((s.done / s.total) * 100) + "%";
     $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
@@ -378,7 +384,14 @@
   });
   $("person-close").addEventListener("click", closePerson);
   $("person").addEventListener("click", function (e) { if (e.target === $("person")) closePerson(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePerson(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (!$("person").hidden) closePerson(); else closeDrawer();
+  });
+  $("menu-btn").addEventListener("click", openDrawer);
+  $("drawer-close").addEventListener("click", closeDrawer);
+  $("drawer-backdrop").addEventListener("click", closeDrawer);
+  document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
   $("admin-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-reset]"); if (b) resetPin(Number(b.dataset.reset), b.dataset.name);
