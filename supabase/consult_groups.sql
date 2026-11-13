@@ -1,7 +1,9 @@
 -- منصة A9: مجموعات الاستشارية (4 مجاميع ثابتة)
 -- انسخه كله والصقه بـ Supabase > SQL Editor > New query ثم اضغط Run
 --
--- الحدود: كل مجموعة 8 طلاب كحد أعلى، منهم 5 بنات و4 ولد كحد أعلى.
+-- الحدود: كل مجموعة 8 طلاب كحد أعلى. كل جنس يتوزع بالتساوي:
+--   17 بنية -> 5، 4، 4، 4 (مجموعة وحدة بس توصل 5)
+--   14 ولد  -> 4، 4، 3، 3 (مجموعتين بس توصل 4)
 -- الخصوصية: كل طالب يشوف أسماء نفس جنسه بس، والجنس الثاني كعدد. الممثل يشوف الكل.
 
 create table if not exists private.consult_members (
@@ -16,14 +18,24 @@ returns boolean language sql stable security definer set search_path = '' as $$
   select coalesce((select value = 'true' from private.settings where key = 'consult_locked'), false);
 $$;
 
--- هل اكو مكان بالمجموعة لهذا الجنس؟
+-- هل اكو مكان بالمجموعة لهذا الجنس؟ (توزيع متساوي: كل مجموعة تاخذ القاعدة، وبس "الباقي" من المجاميع تاخذ واحد زيادة)
 create or replace function private.consult_has_room(p_group int, p_gender char)
-returns boolean language sql stable security definer set search_path = '' as $$
-  select
-    (select count(*) from private.consult_members c where c.group_no = p_group) < 8
-    and (select count(*) from private.consult_members c join private.students s on s.id = c.student_id
-          where c.group_no = p_group and s.gender = p_gender) < case when p_gender = 'F' then 5 else 4 end;
-$$;
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare v_total int; v_base int; v_extra int; v_here int; v_over int; v_size int;
+begin
+  select count(*) into v_total from private.students where gender = p_gender;
+  v_base := v_total / 4; v_extra := v_total % 4;
+  select count(*) into v_size from private.consult_members where group_no = p_group;
+  if v_size >= 8 then return false; end if;
+  select count(*) into v_here from private.consult_members c join private.students s on s.id = c.student_id
+   where c.group_no = p_group and s.gender = p_gender;
+  if v_here < v_base then return true; end if;
+  if v_here > v_base then return false; end if;
+  select count(*) into v_over from (
+    select c.group_no from private.consult_members c join private.students s on s.id = c.student_id
+     where s.gender = p_gender group by c.group_no having count(*) > v_base) x;
+  return v_over < v_extra;
+end $$;
 
 revoke all on function private.consult_locked(), private.consult_has_room(int, char) from public, anon, authenticated;
 
@@ -43,6 +55,9 @@ begin
     'is_admin', v_admin,
     'my_gender', v_me.gender,
     'my_group', (select group_no from private.consult_members where student_id = v_id),
+    'rep_group', (select c.group_no from private.consult_members c join private.students s on s.id = c.student_id where s.is_admin limit 1),
+    'girls_total', (select count(*) from private.students where gender = 'F'),
+    'boys_total', (select count(*) from private.students where gender = 'M'),
     'groups', (
       select json_agg(json_build_object(
         'no', g.no,
