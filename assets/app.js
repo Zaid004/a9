@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -536,6 +536,7 @@
     if (h === "chat" && parts[1]) { show("chat"); openChat(Number(parts[1])); return; }
     if (h === "inbox") { show("inbox"); openInbox(); return; }
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
+    if (h === "ent") { show("ent"); openEnt(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); }
     else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
@@ -684,7 +685,53 @@
     }).catch(function () { loading(false); gpMsg("صار خطأ بالاتصال."); });
   }
 
+  // ---------- grades ----------
+  var myGrades = null;
+  function fmtGrade(g) {
+    if (!g) return "—";
+    if (g.status) return g.status;
+    if (g.grade == null) return "—";
+    return String(Number(g.grade)) + " / " + Number(g.max_grade || 10);
+  }
+  function loadMyGrades() {
+    return rpc("a9_my_grades", { p_token: getToken() }).then(function (rows) {
+      myGrades = {};
+      (rows || []).forEach(function (r) { myGrades[r.rotation] = r; });
+      return myGrades;
+    });
+  }
+  function renderEntMini() {
+    var g = myGrades && myGrades.ent;
+    $("ent-mini").innerHTML = g ? "انتهت · درجتك " + (g.status ? esc(g.status) : '<bdi dir="ltr">' + esc(fmtGrade(g)) + "</bdi>") : "انتهت";
+  }
+  function openEnt() {
+    $("ent-grade").textContent = "—"; $("ent-bar").style.width = "0";
+    loadMyGrades().then(function () {
+      var g = myGrades.ent;
+      $("ent-grade").textContent = g ? fmtGrade(g) : "ما نزلت بعد";
+      $("ent-grade").classList.toggle("held", !!(g && g.status));
+      $("ent-bar").style.width = g && g.grade != null ? Math.round(g.grade / (g.max_grade || 10) * 100) + "%" : "0";
+    }).catch(function () { $("ent-grade").textContent = "ما گدرنا نجيب الدرجة"; });
+
+    var admin = state.me && state.me.is_admin;
+    $("ent-admin").hidden = !admin;
+    if (!admin) return;
+    rpc("a9_admin_grades", { p_token: getToken(), p_rotation: "ent" }).then(function (rows) {
+      rows = rows || [];
+      var nums = rows.filter(function (r) { return r.grade != null; }).map(function (r) { return Number(r.grade); });
+      var avg = nums.length ? (nums.reduce(function (a, b) { return a + b; }, 0) / nums.length) : 0;
+      $("ent-stats").textContent = nums.length ? "المعدل " + avg.toFixed(2) + " · أعلى درجة " + Math.max.apply(null, nums) + " · أقل درجة " + Math.min.apply(null, nums) : "";
+      $("ent-list").innerHTML = rows.map(function (r) {
+        var low = r.grade != null && Number(r.grade) < 5;
+        return '<div class="grow">' + avatar({ id: r.id, name: r.name }) +
+          '<span class="nm">' + esc(r.name) + "</span>" +
+          '<b class="gval' + (r.status ? " held" : low ? " low" : "") + '">' + esc(fmtGrade(r.grade == null && !r.status ? null : r)) + "</b></div>";
+      }).join("");
+    }).catch(function () { $("ent-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب الدرجات.</p>'; });
+  }
+
   function renderHome() {
+    loadMyGrades().then(renderEntMini).catch(function () {});
     renderGallery();
     loadGallery().then(renderGallery).catch(function () {});
     var s = window.A9_gynSummary();
