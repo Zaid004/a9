@@ -150,6 +150,7 @@
     var t = getToken();
     setToken(null);
     state.me = null; state.members = null;
+    try { localStorage.removeItem(GP_KEY); } catch (e) {}
     $("me-btn").hidden = true;
     $("menu-btn").hidden = true;
     closeDrawer();
@@ -228,13 +229,22 @@
   function photoMsg(msg) { $("photo-msg").textContent = msg; $("photo-msg").hidden = !msg; }
 
   // نصغّر الصورة لمربع 256 بكسل حتى تبقى خفيفة
-  function resizeImage(file) {
+  function resizeImage(file, maxSide) {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(file);
       var img = new Image();
       img.onload = function () {
+        var c = document.createElement("canvas");
+        if (maxSide) {
+          // صورة كاملة بدون قص، أطول ضلع maxSide
+          var r = Math.min(1, maxSide / Math.max(img.width, img.height));
+          c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          return resolve(c.toDataURL("image/jpeg", 0.78));
+        }
         var size = 256, side = Math.min(img.width, img.height);
-        var c = document.createElement("canvas"); c.width = size; c.height = size;
+        c.width = size; c.height = size;
         c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
         URL.revokeObjectURL(url);
         resolve(c.toDataURL("image/jpeg", 0.82));
@@ -258,7 +268,7 @@
     e.target.value = "";
     if (!f) return;
     if (!/^image\//.test(f.type)) return photoMsg("اختار صورة.");
-    resizeImage(f).then(saveAvatar).catch(function () { photoMsg("ما گدرنا نقرا الصورة، جرب صورة ثانية."); });
+    resizeImage(f, 0).then(saveAvatar).catch(function () { photoMsg("ما گدرنا نقرا الصورة، جرب صورة ثانية."); });
   }
 
   function onChangePin(e) {
@@ -456,11 +466,13 @@
   var LOG_KINDS = {
     register: "تسجيل جديد", login: "تسجيل دخول", login_failed: "رقم سري غلط", locked: "انقفل الحساب",
     logout: "تسجيل خروج", avatar: "غيّر صورته", avatar_removed: "حذف صورته", pin_changed: "غيّر رقمه السري",
-    pin_reset: "صفّر رقم سري", message: "رسالة"
+    pin_reset: "صفّر رقم سري", message: "رسالة",
+    group_photo: "غيّر صورة المجموعة", group_photo_removed: "حذف صورة المجموعة"
   };
   var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"]];
   var LOG_GROUP = { message: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
-                    avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account" };
+                    avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
+                    group_photo: "account", group_photo_removed: "account" };
   var logState = { rows: [], filter: "all", oldest: null };
 
   function logLine(e) {
@@ -525,12 +537,51 @@
     if (h === "inbox") { show("inbox"); openInbox(); return; }
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
-    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); }
+    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); gpMsg(""); loadGroupPhoto().then(renderGpAdmin); }
     else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
     else { show("home"); renderHome(); }
   }
 
+  // ---------- group photo ----------
+  var GP_KEY = "a9:group_photo";
+  function showGroupPhoto(src) {
+    $("group-photo").hidden = !src;
+    if (src && $("group-photo-img").getAttribute("src") !== src) $("group-photo-img").src = src;
+  }
+  function loadGroupPhoto() {
+    try { var cached = localStorage.getItem(GP_KEY); if (cached) showGroupPhoto(cached); } catch (e) {}
+    return rpc("a9_group_photo", { p_token: getToken() }).then(function (src) {
+      showGroupPhoto(src);
+      try { src ? localStorage.setItem(GP_KEY, src) : localStorage.removeItem(GP_KEY); } catch (e) {}
+      return src;
+    }).catch(function () { return null; });
+  }
+  function renderGpAdmin(src) {
+    $("gp-preview").innerHTML = src ? '<img src="' + esc(src) + '" alt="" />' : '<span class="note">ماكو صورة بعد</span>';
+    $("gp-remove").hidden = !src;
+  }
+  function gpMsg(m) { $("gp-msg").textContent = m; $("gp-msg").hidden = !m; }
+  function saveGroupPhoto(data) {
+    loading(true);
+    return rpc("a9_admin_set_group_photo", { p_token: getToken(), p_photo: data }).then(function (res) {
+      loading(false);
+      if (res && res.ok) {
+        renderGpAdmin(data); showGroupPhoto(data);
+        try { data ? localStorage.setItem(GP_KEY, data) : localStorage.removeItem(GP_KEY); } catch (e) {}
+        gpMsg(data ? "انحفظت صورة المجموعة" : "انحذفت صورة المجموعة");
+      } else gpMsg("ما انحفظت الصورة، جرب صورة ثانية.");
+    }).catch(function () { loading(false); gpMsg("صار خطأ بالاتصال."); });
+  }
+  function onGroupPhoto(e) {
+    var f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!/^image\//.test(f.type)) return gpMsg("اختار صورة.");
+    resizeImage(f, 1400).then(saveGroupPhoto).catch(function () { gpMsg("ما گدرنا نقرا الصورة."); });
+  }
+
   function renderHome() {
+    loadGroupPhoto();
     var s = window.A9_gynSummary();
     $("rot-bar").style.width = Math.round((s.done / s.total) * 100) + "%";
     $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
@@ -568,6 +619,8 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
+  $("gp-input").addEventListener("change", onGroupPhoto);
+  $("gp-remove").addEventListener("click", function () { if (confirm("تحذف صورة المجموعة؟")) saveGroupPhoto(null); });
   $("person-chat").addEventListener("click", function () {
     var id = $("person-chat").dataset.id; closePerson(); closeDrawer(); location.hash = "chat/" + id;
   });
