@@ -884,3 +884,15 @@ a.done-card:hover { transform: translateY(-2px); border-color: var(--primary); }
 .ginfo-card .avatar.huge.group-av { width: 96px; height: 96px; margin: 0 auto; }
 .ginfo-members { text-align: start; margin: 10px 0 4px; max-height: 40vh; overflow-y: auto; }
 .ginfo-card .btn.outline-danger { margin-top: 8px; }
+
+/* ---------- نافذة الإعلان ---------- */
+.intro-card { padding-top: 26px; }
+.intro-ico { width: 72px; height: 72px; margin: 0 auto 10px; border-radius: 22px; display: grid; place-items: center; background: linear-gradient(135deg, #0f172a, #334155); box-shadow: 0 10px 24px rgba(15,23,42,.3); }
+.intro-ico svg { width: 36px; height: 36px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.intro-card h2 { margin: 6px 0 6px; font-size: 1.3rem; }
+.intro-card p { margin: 0 0 6px; line-height: 1.8; }
+.intro-card .note:empty { display: none; }
+.intro-card .btn { margin-top: 10px; }
+.intro-link { display: block; text-align: center; text-decoration: none; }
+.intro-later { margin-top: 12px; color: var(--muted); }
+#notif-row .nav-end .note { font-size: .85rem; }

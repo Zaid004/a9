@@ -1,0 +1,5 @@
+-- منصة A9: إشعارات الرسائل (Web Push)
+-- القاعدة تنادي الخدمة a9-push (supabase/functions/a9-push) عن طريق pg_net من توصل رسالة.
+-- الجدول private.push_subs ودوال a9_push_subscribe / a9_push_unsubscribe / a9_push_gone،
+-- ومشغّلات على private.messages و private.group_messages.
+-- مفتاح VAPID الخاص وكلمة سر الخدمة محفوظين بالخدمة المنشورة وبـ private.settings بس، مو بالريبو.
