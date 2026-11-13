@@ -3,7 +3,7 @@
 
   var CFG = window.A9_CONFIG;
   var TOKEN_KEY = "a9:token";
-  var state = { me: null, students: [], picked: null };
+  var state = { me: null, students: [], picked: null, reps: {} };
 
   // ---------- helpers ----------
   function $(id) { return document.getElementById(id); }
@@ -51,11 +51,15 @@
   // ---------- login ----------
   function renderNames() {
     var q = $("name-search").value.trim();
-    var html = state.students
+    var list = state.students
       .filter(function (s) { return !q || s.name.indexOf(q) !== -1; })
-      .map(function (s) {
-        return '<button type="button" class="name" data-id="' + s.id + '">' +
+      .slice()
+      .sort(function (a, b) { return (state.reps[b.id] ? 1 : 0) - (state.reps[a.id] ? 1 : 0); });
+    var html = list.map(function (s) {
+        var rep = !!state.reps[s.id];
+        return '<button type="button" class="name' + (rep ? " rep" : "") + '" data-id="' + s.id + '">' +
           avatar(s) + '<span class="nm">' + esc(s.name) + "</span>" +
+          (rep ? '<span class="tag gold">الممثل</span>' : "") +
           (s.has_pin ? "" : '<span class="new">جديد</span>') +
           "</button>";
       }).join("");
@@ -64,8 +68,12 @@
 
   function loadStudents() {
     loading(true);
-    return rpc("a9_list_students").then(function (rows) {
-      state.students = rows || [];
+    var reps = rpc("a9_representatives").then(function (rows) {
+      state.reps = {};
+      (rows || []).forEach(function (r) { state.reps[r.id] = true; });
+    }).catch(function () {});
+    return Promise.all([rpc("a9_list_students"), reps]).then(function (res) {
+      state.students = res[0] || [];
       renderNames();
     }).catch(function () {
       $("names").innerHTML = '<p class="error">ما گدرنا نجيب الأسماء، تأكد من الإنترنت وحدّث الصفحة.</p>';
@@ -122,7 +130,7 @@
       var err = res && res.error;
       if (err === "wrong_pin") pinError("الرقم غلط. باقيلك " + res.left + " محاولات قبل ما ينقفل الحساب 15 دقيقة.");
       else if (err === "locked") pinError("الحساب مقفول مؤقتاً. جرب بعد " + res.minutes + " دقيقة.");
-      else if (err === "already_set") { pinError("هذا الاسم صار عنده رقم سري. إذا مو إنت، راجع المسؤول."); s.has_pin = true; }
+      else if (err === "already_set") { pinError("هذا الاسم صار عنده رقم سري. إذا مو إنت، راجع الممثل."); s.has_pin = true; }
       else if (err === "no_pin") { s.has_pin = false; pickStudent(s.id); }
       else pinError("صار خطأ، جرب مرة ثانية.");
     }).catch(function () { loading(false); pinError("ما گدرنا نتصل، تأكد من الإنترنت."); });
@@ -171,7 +179,7 @@
       $("admin-list").innerHTML = rows.map(function (r) {
         return '<div class="arow">' +
           avatar(r) +
-          '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag special">مسؤول</span>' : "") + "</div>" +
+          '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag gold">الممثل</span>' : "") + "</div>" +
           '<div class="note">' + (r.has_pin ? "آخر دخول: " + fmtDate(r.last_login) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div></div>" +
           '<span class="tag ' + (r.has_pin ? "preg" : "cons") + '">' + (r.has_pin ? "مسجّل" : "ما سجّل") + "</span>" +
           (r.has_pin && !r.is_admin ? '<button type="button" class="small-btn" data-reset="' + r.id + '" data-name="' + esc(r.name) + '">تصفير الرقم</button>' : '<span class="small-spacer"></span>') +
@@ -204,7 +212,7 @@
     var me = state.me;
     paintAvatar($("me-avatar"), me);
     $("me-name").textContent = me.name;
-    $("me-badges").innerHTML = me.is_admin ? '<span class="tag special">مسؤول</span>' : '<span class="tag preg">طالب</span>';
+    $("me-badges").innerHTML = me.is_admin ? '<span class="tag gold">الممثل</span>' : '<span class="tag preg">طالب</span>';
     $("me-last").textContent = me.last_login ? fmtDate(me.last_login) : "هسه";
     $("photo-remove").hidden = !me.avatar;
     $("me-admin").hidden = !me.is_admin;
@@ -275,10 +283,6 @@
   }
 
   function renderHome() {
-    var h = new Date().getHours();
-    var greet = h < 12 ? "صباح الخير" : h < 18 ? "هلا" : "مساء الخير";
-    $("hello-name").textContent = greet + " " + state.me.name.split(" ")[0];
-    $("hello-date").textContent = new Date().toLocaleDateString("ar-IQ", { weekday: "long", day: "numeric", month: "long" });
     var s = window.A9_gynSummary();
     $("rot-bar").style.width = Math.round((s.done / s.total) * 100) + "%";
     $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";

@@ -1,4 +1,7 @@
 :root {
+  /* الخط: لتبديله غيّر هذا السطر ورابط Google Fonts بـ index.html */
+  --font: "Cairo", system-ui, sans-serif;
+
   --bg: #f4f7f6;
   --surface: #ffffff;
   --text: #13201e;
@@ -40,7 +43,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body {
-  font-family: "Cairo", system-ui, sans-serif;
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
   line-height: 1.7;
@@ -411,3 +414,18 @@ body {
 .menu-row:hover { border-color: var(--primary); }
 .btn.outline-danger { background: transparent; color: var(--exam); border: 1.5px solid var(--exam); box-shadow: none; }
 .btn.outline-danger:hover { background: var(--exam-bg); }
+
+/* ---------- الممثل ---------- */
+:root { --gold: #b8860b; --gold-2: #f5c84c; --gold-bg: #fdf3d7; }
+@media (prefers-color-scheme: dark) { :root { --gold: #f5c84c; --gold-2: #ffe08a; --gold-bg: #3a2f10; } }
+.tag.gold { color: var(--gold); background: var(--gold-bg); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+.name.rep {
+  border: 2px solid transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box,
+              linear-gradient(135deg, #a8730a, #f5c84c 35%, #fff1b8 50%, #f5c84c 65%, #a8730a) border-box;
+  box-shadow: 0 4px 14px rgba(184, 134, 11, .22);
+}
+.name.rep .avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--gold-2); }
+.name .tag { font-size: .8rem; padding: 0 10px; flex-shrink: 0; }
+
+.home { padding-top: 28px; }
