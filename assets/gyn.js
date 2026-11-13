@@ -40,6 +40,12 @@
     { d: "2026-12-13", end: "2026-12-17", exam: true }
   ];
 
+  var ICON = {
+    cal: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    clock: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    pin: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>'
+  };
+
   var WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
   var MONTHS = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"];
 
@@ -76,11 +82,17 @@
       var diff = Math.round((start - t) / 86400000);
       var when = start <= t ? "اليوم" : diff === 1 ? "باچر" : "بعد " + diff + " أيام";
       next.innerHTML =
-        '<div class="label">' + (start <= t ? "سشن اليوم" : "السشن الجاي &middot; " + when) + "</div>" +
-        '<div class="next-date">' + dateHtml(x) + (x.exam ? "" : " &middot; " + TIME) + "</div>" +
-        '<div class="next-place">' + placeHtml(x) + "</div>" +
+        '<div class="label"><span class="pulse"></span>' + (start <= t ? "سشن اليوم" : "السشن الجاي &middot; " + when) + "</div>" +
+        '<div class="next-date">' + ICON.cal + dateHtml(x) + "</div>" +
+        (x.exam ? "" : '<div class="next-time">' + ICON.clock + TIME + "</div>") +
+        '<div class="next-place">' + ICON.pin + placeHtml(x) + "</div>" +
         (x.t ? '<div class="topic">' + esc(x.t) + "</div>" : "");
     }
+    var s = summary();
+    var pct = Math.round((s.done / s.total) * 100);
+    document.getElementById("progress").innerHTML =
+      '<div class="progress-head"><span>تقدم الروتة</span><span>' + s.done + " من " + s.total + " سشن</span></div>" +
+      '<div class="bar"><i style="width:' + pct + '%"></i></div>';
 
     var html = "";
     var lastWeek = null;
@@ -93,7 +105,7 @@
         html += '<div class="week">' + (x.exam ? "الامتحانات" : "الأسبوع " + n) + "</div>";
         lastWeek = wk;
       }
-      var cls = "row";
+      var cls = "row dot-" + (x.exam ? "exam" : x.special ? "special" : P[x.p].cls);
       if (lastDay(x) < t) cls += " past";
       if (i === nextIdx) cls += " current";
       html +=
@@ -106,5 +118,27 @@
     document.getElementById("list").innerHTML = html;
   }
 
+  // ملخص للصفحة الرئيسية
+  function summary() {
+    var t = today();
+    var sessions = DAYS.filter(function (x) { return !x.exam; });
+    var done = sessions.filter(function (x) { return lastDay(x) < t; }).length;
+    var nx = null;
+    for (var i = 0; i < DAYS.length; i++) { if (lastDay(DAYS[i]) >= t) { nx = DAYS[i]; break; } }
+    var info = null;
+    if (nx) {
+      var start = parse(nx.d);
+      var diff = Math.round((start - t) / 86400000);
+      info = {
+        when: start <= t ? "اليوم" : diff === 1 ? "باچر" : WEEKDAYS[start.getDay()] + " " + fmt(start),
+        place: nx.exam ? "أسبوع الامتحانات" : nx.special ? nx.special : P[nx.p].name,
+        cls: nx.exam ? "exam" : nx.special ? "special" : P[nx.p].cls,
+        time: nx.exam ? "" : TIME
+      };
+    }
+    return { done: done, total: sessions.length, next: info };
+  }
+
   window.A9_renderGyn = render;
+  window.A9_gynSummary = summary;
 })();
