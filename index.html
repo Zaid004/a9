@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="stylesheet" href="assets/style.css?v=__V__" />
 </head>
 <body>
   <header class="topbar">
@@ -169,12 +169,12 @@
 
   <div id="loading" class="loading" hidden>جاري التحميل</div>
 
-  <script src="assets/config.js"></script>
-  <script src="assets/gyn.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="assets/config.js?v=__V__"></script>
+  <script src="assets/gyn.js?v=__V__"></script>
+  <script src="assets/app.js?v=__V__"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol === "https:") {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
+      navigator.serviceWorker.register("sw.js?v=__V__").catch(function () {});
     }
   </script>
 </body>

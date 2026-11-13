@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me"].forEach(function (v) { $(v).hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
