@@ -712,3 +712,36 @@ body.drawer-open { overflow: hidden; }
 }
 .gp-del svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; fill: none; }
 .btn.gp-add { display: block; text-align: center; }
+
+/* ---------- الروتات المنتهية والدرجات ---------- */
+.section-title { font-size: 1rem; margin: 22px 4px 10px; color: var(--muted); }
+.done-list { display: flex; flex-direction: column; gap: 10px; }
+.done-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  color: var(--text); text-decoration: none; box-shadow: var(--shadow);
+}
+a.done-card { transition: transform .2s, border-color .2s; }
+a.done-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+.done-card .chev { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.done-mark {
+  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+  display: grid; place-items: center; font-weight: 800; font-size: .85rem; color: #fff;
+}
+.done-mark.ent { background: linear-gradient(135deg, #0e7490, #22d3ee); }
+.done-mark.eye { background: linear-gradient(135deg, #4338ca, #818cf8); }
+.done-mark.ortho { background: linear-gradient(135deg, #b45309, #f59e0b); }
+.done-main { flex: 1; display: flex; flex-direction: column; line-height: 1.5; }
+.done-sub { font-size: .85rem; color: var(--muted); }
+
+.grade-card { text-align: center; }
+.grade-label { color: var(--muted); font-weight: 700; }
+.grade-big { font-size: 2.6rem; font-weight: 800; margin: 4px 0 12px; direction: ltr; }
+.grade-big.held { font-size: 1.8rem; color: var(--exam); direction: rtl; }
+.grow { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--border); }
+.grow:first-child { border-top: 0; }
+.grow .nm { flex: 1; font-weight: 700; }
+.grow .avatar { width: 34px; height: 34px; font-size: .8rem; }
+.gval { direction: ltr; white-space: nowrap; }
+.gval.low { color: var(--exam); }
+.gval.held { color: var(--exam); direction: rtl; }
