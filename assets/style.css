@@ -815,3 +815,32 @@ a.done-card:hover { transform: translateY(-2px); border-color: var(--primary); }
 }
 .open-banner span { font-size: .9rem; opacity: .9; }
 .open-banner #open-count { font-size: 1.4rem; font-variant-numeric: tabular-nums; direction: ltr; display: inline-block; }
+
+/* ---------- ورقة A4 للمجاميع ---------- */
+.print-btn { margin-bottom: 10px; }
+.print-sheet { display: none; }
+@page { size: A4; margin: 12mm; }
+@media print {
+  html, body { background: #fff !important; min-height: 0; display: block; }
+  body > *:not(.print-sheet) { display: none !important; }
+  .print-sheet { display: block; color: #000; font-family: var(--font); direction: rtl; font-size: 11pt; line-height: 1.45; }
+  .p-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; }
+  .p-head h1 { margin: 0; font-size: 18pt; }
+  .p-head p { margin: 2px 0 0; color: #333; font-size: 10pt; }
+  .p-date { font-size: 9pt; color: #333; text-align: left; }
+  .p-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm 6mm; }
+  .p-group { break-inside: avoid; border: 1px solid #94a3b8; border-radius: 3mm; padding: 3mm 4mm; }
+  .p-group.rep { border: 2px solid #b8860b; }
+  .p-group h2 { margin: 0; font-size: 13pt; }
+  .p-group.rep h2 { color: #8a6508; }
+  .p-count { margin: 1mm 0 2mm; font-size: 9pt; color: #333; }
+  .p-group table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .p-group th, .p-group td { border-bottom: 1px solid #cbd5e1; padding: 1.4mm 1mm; text-align: right; }
+  .p-group th { font-size: 9pt; color: #333; border-bottom: 1px solid #0f172a; }
+  .p-group .n { width: 7mm; text-align: center; color: #555; }
+  .p-group .sig { width: 18mm; }
+  .p-sub td { background: #f1f5f9 !important; font-weight: 700; font-size: 9pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .p-rep { font-size: 8pt; border: 1px solid #b8860b; color: #8a6508; border-radius: 2mm; padding: 0 1.5mm; }
+  .p-empty { text-align: center; color: #777; }
+  .p-un { margin-top: 6mm; font-size: 10pt; }
+}

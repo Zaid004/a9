@@ -840,6 +840,7 @@
       var un = v.unassigned;
       $("consult-admin").innerHTML =
         '<h2 class="card-title">إدارة المجاميع</h2>' +
+        '<button type="button" class="btn ghost print-btn" data-print="1">إصدار ورقة A4 للمجاميع</button>' +
         '<button type="button" class="btn ' + (v.locked ? "ghost" : "") + '" data-lock="' + (v.locked ? "0" : "1") + '">' + (v.locked ? "فتح المجاميع للتبديل" : "تثبيت المجاميع") + "</button>" +
         '<h3 class="sub-title">ما اختاروا (' + un.length + ")</h3>" +
         (un.length ? un.map(function (s) {
@@ -868,11 +869,43 @@
     if (b.dataset.join) consultCall("a9_consult_join", { p_group: Number(b.dataset.join) });
     else if (b.dataset.leave) { if (confirm("تطلع من مجموعتك؟")) consultCall("a9_consult_leave", {}); }
     else if (b.dataset.add) consultCall("a9_consult_add_friend", { p_friend: Number(b.dataset.add) });
+    else if (b.dataset.print) printConsult();
     else if (b.dataset.lock) {
       var lock = b.dataset.lock === "1";
       if (confirm(lock ? "تثبت المجاميع؟ ما أحد يگدر يبدل بعدها." : "تفتح المجاميع للتبديل؟")) consultCall("a9_admin_consult_lock", { p_locked: lock });
     }
   }
+  // ورقة A4: كل المجاميع بأسماء الطلاب (للممثل)
+  function printConsult() {
+    var v = consult;
+    var today = new Date().toLocaleDateString("ar-IQ", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Baghdad" });
+    var byName = function (a, b) { return a.name.localeCompare(b.name, "ar"); };
+    var groupHtml = v.groups.map(function (gr) {
+      var girls = gr.members.filter(function (m) { return m.gender === "F"; }).sort(byName);
+      var boys = gr.members.filter(function (m) { return m.gender === "M"; }).sort(byName);
+      var n = 0;
+      var row = function (m) {
+        n++;
+        return "<tr><td class=\"n\">" + n + "</td><td>" + esc(m.name) + (m.is_admin ? " <span class=\"p-rep\">الممثل</span>" : "") + "</td><td class=\"sig\"></td></tr>";
+      };
+      return '<section class="p-group' + (v.rep_group === gr.no ? " rep" : "") + '">' +
+        "<h2>المجموعة " + gr.no + (v.rep_group === gr.no ? " &middot; مجموعة الممثل" : "") + "</h2>" +
+        '<p class="p-count">' + (gr.girls + gr.boys) + " طلاب &middot; " + gr.girls + " بنات &middot; " + gr.boys + " ولد</p>" +
+        "<table><thead><tr><th class=\"n\">ت</th><th>الاسم</th><th class=\"sig\">الحضور</th></tr></thead><tbody>" +
+        (girls.length ? '<tr class="p-sub"><td colspan="3">البنات</td></tr>' + girls.map(row).join("") : "") +
+        (boys.length ? '<tr class="p-sub"><td colspan="3">الولد</td></tr>' + boys.map(row).join("") : "") +
+        (!girls.length && !boys.length ? '<tr><td colspan="3" class="p-empty">ماكو أحد</td></tr>' : "") +
+        "</tbody></table></section>";
+    }).join("");
+    var un = v.unassigned || [];
+    $("print-sheet").innerHTML =
+      '<header class="p-head"><div><h1>مجموعات الاستشارية</h1><p>روتة النسائية والتوليد &middot; مجموعة A9 &middot; المرحلة الخامسة</p></div>' +
+      '<div class="p-date">' + today + (v.locked ? "<br>المجاميع مثبتة" : "<br>المجاميع غير مثبتة بعد") + "</div></header>" +
+      '<div class="p-grid">' + groupHtml + "</div>" +
+      (un.length ? '<p class="p-un"><b>بدون مجموعة (' + un.length + "):</b> " + un.map(function (s) { return esc(s.name); }).join("، ") + "</p>" : "");
+    setTimeout(function () { window.print(); }, 50);
+  }
+
   function onConsultMove(e) {
     var s = e.target.closest("select.cmove"); if (!s) return;
     var g = s.value === "" ? null : Number(s.value);
