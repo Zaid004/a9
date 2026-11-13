@@ -150,7 +150,7 @@
     var t = getToken();
     setToken(null);
     state.me = null; state.members = null;
-    try { localStorage.removeItem(GP_KEY); } catch (e) {}
+    gpClearCache();
     $("me-btn").hidden = true;
     $("menu-btn").hidden = true;
     closeDrawer();
@@ -537,51 +537,131 @@
     if (h === "inbox") { show("inbox"); openInbox(); return; }
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
-    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); gpMsg(""); loadGroupPhoto().then(renderGpAdmin); }
+    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); }
     else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
     else { show("home"); renderHome(); }
   }
 
-  // ---------- group photo ----------
-  var GP_KEY = "a9:group_photo";
-  function showGroupPhoto(src) {
-    $("group-photo").hidden = !src;
-    if (src && $("group-photo-img").getAttribute("src") !== src) $("group-photo-img").src = src;
-  }
-  function loadGroupPhoto() {
-    try { var cached = localStorage.getItem(GP_KEY); if (cached) showGroupPhoto(cached); } catch (e) {}
-    return rpc("a9_group_photo", { p_token: getToken() }).then(function (src) {
-      showGroupPhoto(src);
-      try { src ? localStorage.setItem(GP_KEY, src) : localStorage.removeItem(GP_KEY); } catch (e) {}
+  // ---------- group photos (gallery) ----------
+  var GP_CACHE = "a9:gp:";
+  var gallery = { ids: [], data: {} };
+
+  function gpGet(id) {
+    if (gallery.data[id]) return Promise.resolve(gallery.data[id]);
+    try { var c = localStorage.getItem(GP_CACHE + id); if (c) { gallery.data[id] = c; return Promise.resolve(c); } } catch (e) {}
+    return rpc("a9_group_photo_data", { p_token: getToken(), p_id: id }).then(function (src) {
+      if (src) { gallery.data[id] = src; try { localStorage.setItem(GP_CACHE + id, src); } catch (e) {} }
       return src;
-    }).catch(function () { return null; });
+    });
   }
-  function renderGpAdmin(src) {
-    $("gp-preview").innerHTML = src ? '<img src="' + esc(src) + '" alt="" />' : '<span class="note">ماكو صورة بعد</span>';
-    $("gp-remove").hidden = !src;
+  function gpClearCache() {
+    try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(GP_CACHE) === 0) localStorage.removeItem(k); }); } catch (e) {}
+    gallery = { ids: [], data: {} };
   }
+
+  function loadGallery() {
+    return rpc("a9_group_photo_ids", { p_token: getToken() }).then(function (rows) {
+      gallery.ids = (rows || []).map(function (r) { return r.id; });
+      // نشيل من الموبايل الصور اللي انحذفت
+      try { Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf(GP_CACHE) === 0 && gallery.ids.indexOf(Number(k.slice(GP_CACHE.length))) === -1) localStorage.removeItem(k);
+      }); } catch (e) {}
+      return gallery.ids;
+    });
+  }
+
+  function renderGallery() {
+    var ids = gallery.ids;
+    $("gallery").hidden = !ids.length;
+    if (!ids.length) return;
+    var track = $("gallery-track");
+    var have = Array.prototype.map.call(track.children, function (s) { return Number(s.dataset.id); });
+    if (have.join() !== ids.join()) {
+      track.innerHTML = ids.map(function (id) {
+        return '<div class="slide" data-id="' + id + '"><img alt="صورة المجموعة" draggable="false" /><span class="slide-cap">المرحلة الخامسة &middot; 2026 – 2027</span></div>';
+      }).join("");
+      $("gallery-dots").innerHTML = ids.length > 1 ? ids.map(function (_, i) { return '<i' + (i === 0 ? ' class="on"' : "") + "></i>"; }).join("") : "";
+      track.scrollLeft = 0;
+    }
+    ids.forEach(function (id) {
+      gpGet(id).then(function (src) {
+        var img = track.querySelector('.slide[data-id="' + id + '"] img');
+        if (img && src && img.getAttribute("src") !== src) img.src = src;
+      }).catch(function () {});
+    });
+  }
+
+  function updateDots() {
+    var track = $("gallery-track");
+    var i = Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
+    Array.prototype.forEach.call($("gallery-dots").children, function (d, k) { d.classList.toggle("on", k === i); });
+  }
+
+  // ثبّت الإصبع على الصورة: تتوضح، وتشيل الإصبع: ترجع ضبابية
+  function bindGalleryHold() {
+    var track = $("gallery-track");
+    function clear(on, e) {
+      var s = e && e.target.closest ? e.target.closest(".slide") : null;
+      if (on && s) s.classList.add("clear");
+      if (!on) Array.prototype.forEach.call(track.querySelectorAll(".slide.clear"), function (x) { x.classList.remove("clear"); });
+    }
+    track.addEventListener("pointerdown", function (e) { clear(true, e); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { track.addEventListener(ev, function () { clear(false); }); });
+    track.addEventListener("scroll", function () { clear(false); updateDots(); }, { passive: true });
+    track.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  }
+
+  // ----- admin side -----
   function gpMsg(m) { $("gp-msg").textContent = m; $("gp-msg").hidden = !m; }
-  function saveGroupPhoto(data) {
-    loading(true);
-    return rpc("a9_admin_set_group_photo", { p_token: getToken(), p_photo: data }).then(function (res) {
-      loading(false);
-      if (res && res.ok) {
-        renderGpAdmin(data); showGroupPhoto(data);
-        try { data ? localStorage.setItem(GP_KEY, data) : localStorage.removeItem(GP_KEY); } catch (e) {}
-        gpMsg(data ? "انحفظت صورة المجموعة" : "انحذفت صورة المجموعة");
-      } else gpMsg("ما انحفظت الصورة، جرب صورة ثانية.");
-    }).catch(function () { loading(false); gpMsg("صار خطأ بالاتصال."); });
+  function renderGpAdmin() {
+    var ids = gallery.ids;
+    $("gp-grid").innerHTML = ids.length ? ids.map(function (id) {
+      return '<div class="gp-thumb" data-id="' + id + '"><img alt="" /><button type="button" class="gp-del" data-del="' + id + '" aria-label="حذف">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+    }).join("") : '<p class="note" style="grid-column:1/-1;text-align:center;margin:18px 0">ماكو صور بعد</p>';
+    ids.forEach(function (id) {
+      gpGet(id).then(function (src) { var img = $("gp-grid").querySelector('.gp-thumb[data-id="' + id + '"] img'); if (img && src) img.src = src; }).catch(function () {});
+    });
   }
-  function onGroupPhoto(e) {
-    var f = e.target.files && e.target.files[0];
+  function openGpAdmin() { gpMsg(""); loadGallery().then(renderGpAdmin).catch(function () { gpMsg("ما گدرنا نجيب الصور."); }); }
+
+  function onGroupPhotos(e) {
+    var files = Array.prototype.slice.call(e.target.files || []).filter(function (f) { return /^image\//.test(f.type); });
     e.target.value = "";
-    if (!f) return;
-    if (!/^image\//.test(f.type)) return gpMsg("اختار صورة.");
-    resizeImage(f, 1400).then(saveGroupPhoto).catch(function () { gpMsg("ما گدرنا نقرا الصورة."); });
+    if (!files.length) return;
+    var done = 0, failed = 0;
+    loading(true);
+    files.reduce(function (p, f) {
+      return p.then(function () {
+        gpMsg("جاري الرفع " + (done + failed + 1) + " من " + files.length);
+        return resizeImage(f, 1200).then(function (data) {
+          return rpc("a9_admin_add_group_photo", { p_token: getToken(), p_photo: data }).then(function (res) {
+            if (res && res.ok) { done++; gallery.data[res.id] = data; try { localStorage.setItem(GP_CACHE + res.id, data); } catch (x) {} }
+            else failed++;
+          });
+        }).catch(function () { failed++; });
+      });
+    }, Promise.resolve()).then(function () {
+      loading(false);
+      gpMsg("انرفعت " + done + " صورة" + (failed ? "، وما انرفعت " + failed : ""));
+      return loadGallery().then(renderGpAdmin);
+    });
+  }
+
+  function removeGroupPhoto(id) {
+    if (!confirm("تحذف هاي الصورة؟")) return;
+    loading(true);
+    rpc("a9_admin_remove_group_photo", { p_token: getToken(), p_id: id }).then(function (res) {
+      loading(false);
+      if (res && res.ok) { delete gallery.data[id]; try { localStorage.removeItem(GP_CACHE + id); } catch (x) {} gpMsg("انحذفت الصورة"); }
+      else gpMsg("ما انحذفت الصورة.");
+      return loadGallery().then(renderGpAdmin);
+    }).catch(function () { loading(false); gpMsg("صار خطأ بالاتصال."); });
   }
 
   function renderHome() {
-    loadGroupPhoto();
+    renderGallery();
+    loadGallery().then(renderGallery).catch(function () {});
     var s = window.A9_gynSummary();
     $("rot-bar").style.width = Math.round((s.done / s.total) * 100) + "%";
     $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
@@ -619,8 +699,9 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
-  $("gp-input").addEventListener("change", onGroupPhoto);
-  $("gp-remove").addEventListener("click", function () { if (confirm("تحذف صورة المجموعة؟")) saveGroupPhoto(null); });
+  $("gp-input").addEventListener("change", onGroupPhotos);
+  $("gp-grid").addEventListener("click", function (e) { var b = e.target.closest("[data-del]"); if (b) removeGroupPhoto(Number(b.dataset.del)); });
+  bindGalleryHold();
   $("person-chat").addEventListener("click", function () {
     var id = $("person-chat").dataset.id; closePerson(); closeDrawer(); location.hash = "chat/" + id;
   });
