@@ -25,6 +25,7 @@
     <div class="tb-side end">
       <button type="button" id="menu-btn" class="menu-btn" aria-label="القائمة" aria-controls="drawer" aria-expanded="false" hidden>
         <span></span><span></span><span></span>
+        <i class="dot" id="menu-dot" hidden></i>
       </button>
     </div>
   </header>
@@ -42,8 +43,10 @@
     <nav class="drawer-nav">
       <a href="#" data-nav="home">الرئيسية</a>
       <a href="#gyn" data-nav="gyn">روتة النسائية</a>
+      <a href="#inbox" data-nav="inbox">الرسائل <b class="badge" id="nav-unread" hidden></b></a>
       <a href="#me" data-nav="me">حسابي</a>
-      <a href="#admin" data-nav="admin" id="nav-admin" hidden>صفحة الإدارة</a>
+      <a href="#admin" data-nav="admin" class="admin-only" hidden>صفحة الإدارة</a>
+      <a href="#log" data-nav="log" class="admin-only" hidden>سجل الأحداث</a>
     </nav>
     <div class="drawer-section">
       <div class="drawer-title"><span>المشاركين</span><span id="members-sub" class="count"></span></div>
@@ -105,9 +108,44 @@
       <div id="person-avatar" class="avatar huge"></div>
       <h2 id="person-name"></h2>
       <div id="person-badge"></div>
+      <button type="button" class="btn" id="person-chat">مراسلة</button>
       <button type="button" class="btn ghost" id="person-close">إغلاق</button>
     </div>
   </div>
+
+  <!-- الرسائل -->
+  <main id="inbox" class="view page narrow" hidden>
+    <a href="#" class="back">رجوع</a>
+    <h1>الرسائل</h1>
+    <p class="sub">حتى تبدي محادثة جديدة، افتح القائمة واضغط على اسم أي طالب.</p>
+    <div id="inbox-list" class="list"></div>
+  </main>
+
+  <!-- محادثة -->
+  <main id="chat" class="view chat" hidden>
+    <div class="chat-head">
+      <a href="#inbox" class="chat-back" aria-label="رجوع"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+      <div id="chat-avatar" class="avatar"></div>
+      <div class="chat-who"><b id="chat-name"></b></div>
+    </div>
+    <div id="chat-msgs" class="chat-msgs"></div>
+    <form id="chat-form" class="chat-form">
+      <textarea id="chat-input" rows="1" maxlength="2000" placeholder="اكتب رسالة" required></textarea>
+      <button type="submit" class="chat-send" aria-label="إرسال">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12L4 4l3 8-3 8z"/></svg>
+      </button>
+    </form>
+  </main>
+
+  <!-- سجل الأحداث -->
+  <main id="log" class="view page" hidden>
+    <a href="#" class="back">رجوع</a>
+    <h1>سجل الأحداث</h1>
+    <p class="sub">كل شي يصير بالمنصة، من الأحدث للأقدم.</p>
+    <div class="chips" id="log-filters"></div>
+    <div id="log-list" class="list"></div>
+    <button type="button" id="log-more" class="btn ghost" hidden>عرض أقدم</button>
+  </main>
 
   <!-- حسابي -->
   <main id="me" class="view page narrow" hidden>
