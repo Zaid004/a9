@@ -88,10 +88,13 @@
 
   <!-- الرئيسية -->
   <main id="home" class="view page home" hidden>
-    <div id="group-photo" class="group-photo" hidden>
-      <img id="group-photo-img" alt="صورة المجموعة" />
-      <div class="gp-text">المرحلة الخامسة &middot; 2026 – 2027</div>
-    </div>
+    <section id="gallery" class="gallery" hidden>
+      <div id="gallery-track" class="gallery-track"></div>
+      <div class="gallery-foot">
+        <div id="gallery-dots" class="gallery-dots"></div>
+        <span class="gallery-hint">ثبّت إصبعك على الصورة حتى تتوضح</span>
+      </div>
+    </section>
     <a href="#gyn" class="rot-card">
       <div class="rot-top">
         <span class="rot-title">روتة النسائية</span>
@@ -215,14 +218,11 @@
     <div style="height:16px"></div>
 
     <section class="card gp-admin">
-      <h2 class="card-title">صورة المجموعة</h2>
-      <p class="note">تطلع بأعلى الرئيسية لكل الطلاب المسجلين دخول.</p>
-      <div class="gp-preview" id="gp-preview"><span class="note">ماكو صورة بعد</span></div>
-      <div class="photo-actions">
-        <label for="gp-input" class="link-btn">رفع صورة</label>
-        <button type="button" id="gp-remove" class="link-btn danger" hidden>حذف الصورة</button>
-      </div>
-      <input id="gp-input" type="file" accept="image/*" hidden />
+      <h2 class="card-title">صور المجموعة</h2>
+      <p class="note">تطلع بأعلى الرئيسية، والطلاب يسحبونها يمين ويسار.</p>
+      <div class="gp-grid" id="gp-grid"></div>
+      <label for="gp-input" class="btn gp-add">إضافة صور</label>
+      <input id="gp-input" type="file" accept="image/*" multiple hidden />
       <p id="gp-msg" class="note center-text" hidden></p>
     </section>
 

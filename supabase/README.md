@@ -19,3 +19,7 @@
 - `a9_admin_set_group_photo(token, photo)`: للممثل، يرفع الصورة أو يحذفها.
 
 الصورة محفوظة بجدول `private.settings`، ومو موجودة بالريبو.
+
+### معرض صور المجموعة
+- `a9_group_photo_ids(token)` و `a9_group_photo_data(token, id)`: للمسجلين دخول بس.
+- `a9_admin_add_group_photo(token, photo)` و `a9_admin_remove_group_photo(token, id)`: للممثل. الحذف يعلّم الصورة كمحذوفة بدل ما يمسحها.

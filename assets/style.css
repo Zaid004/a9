@@ -669,3 +669,47 @@ body.drawer-open { overflow: hidden; }
   .bar > i { background: linear-gradient(90deg, #94a3b8, #e2e8f0); }
   .next { background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(135deg, #94a3b8, #e2e8f0) border-box; }
 }
+
+/* ---------- معرض صور المجموعة ---------- */
+.gallery { margin-bottom: 14px; }
+.gallery[hidden] { display: none; }
+.gallery-track {
+  display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  border-radius: 24px;
+}
+.gallery-track::-webkit-scrollbar { display: none; }
+.slide {
+  position: relative; flex: 0 0 100%; height: 210px; border-radius: 24px; overflow: hidden;
+  scroll-snap-align: center; background: #1e293b; isolation: isolate; box-shadow: var(--shadow);
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-x;
+}
+.slide img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%;
+  filter: blur(2px) saturate(.9); transform: scale(1.03);
+  transition: filter .35s ease, transform .35s ease; pointer-events: none;
+}
+.slide::after {
+  content: ""; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(180deg, rgba(15,23,42,0) 45%, rgba(15,23,42,.75));
+  transition: opacity .35s ease;
+}
+.slide.clear img { filter: none; transform: scale(1); }
+.slide.clear::after { opacity: .35; }
+.slide-cap { position: absolute; z-index: 2; bottom: 12px; right: 16px; color: #fff; font-size: .9rem; font-weight: 700; }
+.gallery-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 0 4px; }
+.gallery-dots { display: flex; gap: 6px; }
+.gallery-dots i { width: 7px; height: 7px; border-radius: 999px; background: var(--border); transition: width .25s, background .25s; }
+.gallery-dots i.on { width: 20px; background: var(--primary); }
+.gallery-hint { font-size: .78rem; color: var(--muted); margin-inline-start: auto; }
+@media (max-width: 520px) { .slide { height: 190px; } }
+
+.gp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.gp-thumb { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: var(--bg); border: 1px solid var(--border); }
+.gp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gp-del {
+  position: absolute; top: 6px; left: 6px; width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(15,23,42,.75); display: grid; place-items: center;
+}
+.gp-del svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; fill: none; }
+.btn.gp-add { display: block; text-align: center; }
