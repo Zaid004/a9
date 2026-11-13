@@ -1,7 +1,7 @@
 // يخلي المنصة تنفتح مثل التطبيق، ويحفظ ملفاتها حتى تفتح أسرع.
 // يجيب النسخة الجديدة من الإنترنت أول، وإذا ماكو إنترنت يفتح المحفوظة.
-var CACHE = "a9-v1";
-var SHELL = ["./", "index.html", "assets/style.css", "assets/app.js", "assets/gyn.js", "assets/config.js",
+var CACHE = "a9-__V__";
+var SHELL = ["./", "index.html",
              "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", function (e) {
@@ -18,7 +18,7 @@ self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return; // قاعدة البيانات ما تنحفظ
   e.respondWith(
-    fetch(req).then(function (res) {
+    fetch(req, { cache: "no-cache" }).then(function (res) {
       var copy = res.clone();
       caches.open(CACHE).then(function (c) { c.put(req, copy); });
       return res;
