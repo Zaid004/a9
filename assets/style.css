@@ -745,3 +745,6 @@ a.done-card:hover { transform: translateY(-2px); border-color: var(--primary); }
 .gval { direction: ltr; white-space: nowrap; }
 .gval.low { color: var(--exam); }
 .gval.held { color: var(--exam); direction: rtl; }
+
+.done-mark svg { width: 28px; height: 28px; fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.done-mark svg .fill { fill: #fff; stroke: none; }
