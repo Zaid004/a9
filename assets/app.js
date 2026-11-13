@@ -606,8 +606,8 @@
       clearTimeout(settle);
       settle = setTimeout(function () { if (!touching) track.classList.remove("holding"); }, 220);
     }
-    function start() { touching = true; on(); }
-    function end() { touching = false; offSoon(); }
+    function start() { touching = true; on(); restartAuto(); }
+    function end() { touching = false; offSoon(); restartAuto(); }
     track.addEventListener("touchstart", start, { passive: true });
     track.addEventListener("touchend", end);
     track.addEventListener("touchcancel", end);
@@ -618,6 +618,22 @@
       if (track.classList.contains("holding")) { clearTimeout(settle); if (!touching) offSoon(); }
     }, { passive: true });
     track.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    restartAuto();
+  }
+
+  // كل 3 ثواني تنتقل للصورة اللي بعدها، وبعد الأخيرة ترجع للأولى
+  var autoTimer = null;
+  function restartAuto() {
+    clearInterval(autoTimer);
+    autoTimer = setInterval(function () {
+      var track = $("gallery-track");
+      var slides = track.children;
+      if (slides.length < 2 || document.hidden || $("home").hidden || track.classList.contains("holding")) return;
+      var i = Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
+      var next = slides[(i + 1) % slides.length];
+      var dir = getComputedStyle(track).direction === "rtl" ? -1 : 1;
+      track.scrollTo({ left: dir * next.offsetWidth * ((i + 1) % slides.length), behavior: "smooth" });
+    }, 3000);
   }
 
   // ----- admin side -----
