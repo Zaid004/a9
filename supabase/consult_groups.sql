@@ -37,7 +37,16 @@ begin
   return v_over < v_extra;
 end $$;
 
-revoke all on function private.consult_locked(), private.consult_has_room(int, char) from public, anon, authenticated;
+-- وقت فتح الانضمام (يتغير من جدول الإعدادات)
+insert into private.settings(key, value, updated_at) values ('consult_opens_at', '2026-11-13 19:10:00+03', now())
+on conflict (key) do update set value = excluded.value, updated_at = now();
+
+create or replace function private.consult_opens_at()
+returns timestamptz language sql stable security definer set search_path = '' as $$
+  select (select value from private.settings where key = 'consult_opens_at')::timestamptz;
+$$;
+
+revoke all on function private.consult_locked(), private.consult_has_room(int, char), private.consult_opens_at() from public, anon, authenticated;
 
 -- كل اللي يحتاجه الطالب لصفحة المجاميع
 create or replace function public.a9_consult_view(p_token uuid)
@@ -52,6 +61,8 @@ begin
   v_admin := v_me.is_admin;
   return json_build_object(
     'locked', private.consult_locked(),
+    'opens_at', private.consult_opens_at(),
+    'now', now(),
     'is_admin', v_admin,
     'my_gender', v_me.gender,
     'my_group', (select group_no from private.consult_members where student_id = v_id),
@@ -88,6 +99,10 @@ begin
   if v_id is null then return json_build_object('ok', false, 'error', 'no_session'); end if;
   if private.consult_locked() then return json_build_object('ok', false, 'error', 'locked'); end if;
   if p_group not between 1 and 4 then return json_build_object('ok', false, 'error', 'bad_group'); end if;
+  if now() < coalesce(private.consult_opens_at(), now())
+     and not exists (select 1 from private.students x where x.id = v_id and x.is_admin) then
+    return json_build_object('ok', false, 'error', 'not_open');
+  end if;
   lock table private.consult_members in exclusive mode;  -- حتى ما ينضم اثنين سوة ويعبرون الحد
   select gender into v_gender from private.students where id = v_id;
   select group_no into v_cur from private.consult_members where student_id = v_id;
@@ -119,6 +134,10 @@ declare v_id int := private.session_student(p_token); v_group int; v_my char(1);
 begin
   if v_id is null then return json_build_object('ok', false, 'error', 'no_session'); end if;
   if private.consult_locked() then return json_build_object('ok', false, 'error', 'locked'); end if;
+  if now() < coalesce(private.consult_opens_at(), now())
+     and not exists (select 1 from private.students x where x.id = v_id and x.is_admin) then
+    return json_build_object('ok', false, 'error', 'not_open');
+  end if;
   lock table private.consult_members in exclusive mode;
   select group_no into v_group from private.consult_members where student_id = v_id;
   if v_group is null then return json_build_object('ok', false, 'error', 'not_in_group'); end if;

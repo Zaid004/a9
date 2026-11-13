@@ -711,6 +711,7 @@
   var consult = null;
   var CONSULT_ERR = {
     locked: "المجاميع تثبتت، ما تگدر تبدل. راجع الممثل.",
+    not_open: "الانضمام بعده ما انفتح.",
     full: "هالمجموعة تعبت لجنسك.",
     already_in_group: "هذا الطالب صار بمجموعة.",
     not_in_group: "لازم تنضم لمجموعة أول.",
@@ -721,12 +722,38 @@
     var s = window.A9_gynSummary();
     $("rot-gyn-sub").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
     rpc("a9_consult_view", { p_token: getToken() }).then(function (v) {
-      $("tile-consult-sub").textContent = v.my_group ? "إنت بالمجموعة " + v.my_group : (v.locked ? "المجاميع تثبتت" : "اختار مجموعتك");
+      var soon = !v.is_admin && v.opens_at && v.now && new Date(v.opens_at) > new Date(v.now);
+      $("tile-consult-sub").textContent = v.my_group ? "إنت بالمجموعة " + v.my_group : (v.locked ? "المجاميع تثبتت" : soon ? "يفتح الساعة " + new Date(v.opens_at).toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Baghdad" }) : "اختار مجموعتك");
     }).catch(function () {});
   }
 
+  var clockSkew = 0, openTimer = null;
   function consultLoad() {
-    return rpc("a9_consult_view", { p_token: getToken() }).then(function (v) { consult = v; renderConsult(); });
+    return rpc("a9_consult_view", { p_token: getToken() }).then(function (v) {
+      consult = v;
+      if (v.now) clockSkew = new Date(v.now).getTime() - Date.now(); // نعتمد وقت السيرفر مو ساعة الموبايل
+      renderConsult();
+      startOpenTimer();
+    });
+  }
+  function msToOpen() {
+    if (!consult || !consult.opens_at) return 0;
+    return new Date(consult.opens_at).getTime() - (Date.now() + clockSkew);
+  }
+  function notOpenYet() { return !consult.is_admin && msToOpen() > 0; }
+  function startOpenTimer() {
+    clearInterval(openTimer);
+    if (msToOpen() <= 0) return;
+    openTimer = setInterval(function () {
+      if ($("consult").hidden) { clearInterval(openTimer); return; }
+      if (msToOpen() <= 0) { clearInterval(openTimer); consultLoad(); return; }
+      var el = $("open-count"); if (el) el.textContent = fmtLeft(msToOpen());
+    }, 1000);
+  }
+  function fmtLeft(ms) {
+    var s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+    var two = function (n) { return (n < 10 ? "0" : "") + n; };
+    return (h ? h + ":" + two(m) : m) + ":" + two(ss);
   }
   function openConsult() {
     $("consult-groups").innerHTML = "";
@@ -765,8 +792,11 @@
     var v = consult, admin = v.is_admin, g = v.my_gender;
     var other = g === "F" ? "ولد" : "بنات";
     // status
+    var waiting = notOpenYet();
+    var openLabel = v.opens_at ? new Date(v.opens_at).toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Baghdad" }) : "";
     $("consult-status").innerHTML =
-      (v.locked ? '<div class="cstat locked">المجاميع تثبتت</div>' : '<div class="cstat open">الاختيار مفتوح</div>') +
+      (waiting ? '<div class="open-banner"><div>الانضمام يفتح الساعة <b>' + openLabel + '</b> بتوقيت بغداد</div><span>باقي <b id="open-count">' + fmtLeft(msToOpen()) + "</b></span></div>" : "") +
+      (v.locked ? '<div class="cstat locked">المجاميع تثبتت</div>' : waiting ? '<div class="cstat none">بعده ما انفتح</div>' : '<div class="cstat open">الاختيار مفتوح</div>') +
       (v.my_group ? '<div class="cstat mine">إنت بالمجموعة ' + v.my_group + "</div>" : '<div class="cstat none">بعدك ما اخترت مجموعة</div>');
 
     // groups
@@ -776,7 +806,8 @@
       var room = myCount < capFor(gr, g) && gr.girls + gr.boys < CAP.total;
       var repG = v.rep_group === gr.no;
       var btn = "";
-      if (!v.locked) {
+      if (waiting) btn = "";
+      else if (!v.locked) {
         if (mine) btn = '<button type="button" class="cbtn leave" data-leave="1">مغادرة</button>';
         else if (room) btn = '<button type="button" class="cbtn join" data-join="' + gr.no + '">' + (v.my_group ? "انتقال لهنا" : "انضمام") + "</button>";
         else btn = '<span class="cfull">تعبت</span>';
@@ -799,7 +830,7 @@
     }).join("");
 
     // friends
-    var canAdd = !v.locked && v.my_group;
+    var canAdd = !v.locked && v.my_group && !waiting;
     $("consult-friends").hidden = !canAdd || admin;
     if (canAdd && !admin) renderFriends();
 
