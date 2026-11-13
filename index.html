@@ -211,17 +211,35 @@
   <!-- الرسائل -->
   <main id="inbox" class="view page narrow" hidden>
     <a href="#" class="back">رجوع</a>
-    <h1>الرسائل</h1>
-    <p class="sub">حتى تبدي محادثة جديدة، افتح القائمة واضغط على اسم أي طالب.</p>
+    <div class="inbox-head">
+      <h1>الرسائل</h1>
+      <a href="#new" class="btn new-chat-btn">محادثة جديدة</a>
+    </div>
     <div id="inbox-list" class="list"></div>
+  </main>
+
+  <!-- محادثة جديدة / إضافة أعضاء -->
+  <main id="new" class="view page narrow" hidden>
+    <a href="#inbox" class="back" id="new-back">رجوع</a>
+    <h1 id="new-title">محادثة جديدة</h1>
+    <p class="sub" id="new-sub">اختار طالب حتى تراسله، أو أكثر من طالب حتى تسوي مجموعة.</p>
+    <input id="new-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+    <div id="new-list" class="list pick-list"></div>
+    <div class="pick-bar" id="pick-bar" hidden>
+      <div class="pick-chosen" id="pick-chosen"></div>
+      <input id="group-name" class="input" maxlength="60" placeholder="اسم المجموعة" hidden />
+      <button type="button" id="pick-go" class="btn"></button>
+    </div>
   </main>
 
   <!-- محادثة -->
   <main id="chat" class="view chat" hidden>
     <div class="chat-head">
       <a href="#inbox" class="chat-back" aria-label="رجوع"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
-      <div id="chat-avatar" class="avatar"></div>
-      <div class="chat-who"><b id="chat-name"></b></div>
+      <button type="button" id="chat-who-btn" class="chat-who-btn">
+        <div id="chat-avatar" class="avatar"></div>
+        <div class="chat-who"><b id="chat-name"></b><span id="chat-subline" class="chat-subline"></span></div>
+      </button>
     </div>
     <div id="chat-msgs" class="chat-msgs"></div>
     <form id="chat-form" class="chat-form">
@@ -231,6 +249,19 @@
       </button>
     </form>
   </main>
+
+  <!-- معلومات المجموعة -->
+  <div id="ginfo" class="sheet" hidden>
+    <div class="sheet-card ginfo-card" role="dialog" aria-modal="true">
+      <div class="avatar huge group-av"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 6.5-3.1"/></svg></div>
+      <h2 id="ginfo-name"></h2>
+      <p class="note" id="ginfo-count"></p>
+      <div id="ginfo-members" class="ginfo-members"></div>
+      <button type="button" class="btn" id="ginfo-add">إضافة أعضاء</button>
+      <button type="button" class="btn outline-danger" id="ginfo-leave">مغادرة المجموعة</button>
+      <button type="button" class="btn ghost" id="ginfo-close">إغلاق</button>
+    </div>
+  </div>
 
   <!-- سجل الأحداث -->
   <main id="log" class="view page" hidden>
