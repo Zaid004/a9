@@ -31,13 +31,20 @@
   }
   function avatarHue(id) { return (id * 47) % 360; }
   function avatar(s, extra) {
-    return '<span class="avatar' + (extra ? " " + extra : "") + '" style="--h:' + avatarHue(s.id) + '">' + esc(initials(s.name)) + "</span>";
+    var cls = "avatar" + (extra ? " " + extra : "");
+    if (s.avatar) return '<span class="' + cls + ' has-img"><img src="' + esc(s.avatar) + '" alt="" /></span>';
+    return '<span class="' + cls + '" style="--h:' + avatarHue(s.id) + '">' + esc(initials(s.name)) + "</span>";
+  }
+  function paintAvatar(el, s) {
+    el.style.setProperty("--h", avatarHue(s.id));
+    el.classList.toggle("has-img", !!s.avatar);
+    el.innerHTML = s.avatar ? '<img src="' + esc(s.avatar) + '" alt="" />' : esc(initials(s.name));
   }
 
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin"].forEach(function (v) { $(v).hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me"].forEach(function (v) { $(v).hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -109,6 +116,7 @@
         setToken(res.token);
         state.me = { id: res.id, name: res.name, is_admin: res.is_admin };
         afterLogin();
+        refreshMe();
         return;
       }
       var err = res && res.error;
@@ -122,9 +130,8 @@
 
   // ---------- session ----------
   function afterLogin() {
-    $("user-box").hidden = false;
-    $("user-name").textContent = state.me.name.split(" ")[0];
-    $("admin-link").hidden = !state.me.is_admin;
+    $("me-btn").hidden = false;
+    paintAvatar($("me-btn"), state.me);
     backToNames();
     route();
   }
@@ -133,7 +140,7 @@
     var t = getToken();
     setToken(null);
     state.me = null;
-    $("user-box").hidden = true;
+    $("me-btn").hidden = true;
     if (t) rpc("a9_logout", { p_token: t }).catch(function () {});
     location.hash = "";
     showLogin();
@@ -186,12 +193,84 @@
     }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
   }
 
+  // ---------- my account ----------
+  function refreshMe() {
+    return rpc("a9_me", { p_token: getToken() }).then(function (me) {
+      if (me && me.id) { state.me = me; paintAvatar($("me-btn"), me); if (location.hash === "#me") renderMe(); }
+    }).catch(function () {});
+  }
+
+  function renderMe() {
+    var me = state.me;
+    paintAvatar($("me-avatar"), me);
+    $("me-name").textContent = me.name;
+    $("me-badges").innerHTML = me.is_admin ? '<span class="tag special">مسؤول</span>' : '<span class="tag preg">طالب</span>';
+    $("me-last").textContent = me.last_login ? fmtDate(me.last_login) : "هسه";
+    $("photo-remove").hidden = !me.avatar;
+    $("me-admin").hidden = !me.is_admin;
+    $("pin-msg").hidden = true;
+    $("photo-msg").hidden = true;
+  }
+
+  function photoMsg(msg) { $("photo-msg").textContent = msg; $("photo-msg").hidden = !msg; }
+
+  // نصغّر الصورة لمربع 256 بكسل حتى تبقى خفيفة
+  function resizeImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var size = 256, side = Math.min(img.width, img.height);
+        var c = document.createElement("canvas"); c.width = size; c.height = size;
+        c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("bad_image")); };
+      img.src = url;
+    });
+  }
+
+  function saveAvatar(data) {
+    loading(true);
+    return rpc("a9_set_avatar", { p_token: getToken(), p_avatar: data }).then(function (res) {
+      loading(false);
+      if (res && res.ok) { state.me.avatar = data; renderMe(); paintAvatar($("me-btn"), state.me); photoMsg(data ? "انحفظت الصورة" : "انحذفت الصورة"); }
+      else photoMsg("ما گدرنا نحفظ الصورة، جرب صورة ثانية.");
+    }).catch(function () { loading(false); photoMsg("صار خطأ بالاتصال."); });
+  }
+
+  function onPhoto(e) {
+    var f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!/^image\//.test(f.type)) return photoMsg("اختار صورة.");
+    resizeImage(f).then(saveAvatar).catch(function () { photoMsg("ما گدرنا نقرا الصورة، جرب صورة ثانية."); });
+  }
+
+  function onChangePin(e) {
+    e.preventDefault();
+    var o = $("pin-old").value.trim(), n = $("pin-new").value.trim(), n2 = $("pin-new2").value.trim();
+    var msg = $("pin-msg");
+    function say(text, ok) { msg.textContent = text; msg.className = ok ? "success" : "error"; msg.hidden = false; }
+    if (!/^[0-9]{4}$/.test(n)) return say("الرقم الجديد لازم يكون 4 أرقام.");
+    if (n !== n2) return say("الرقمين الجداد مو نفس الشي.");
+    loading(true);
+    rpc("a9_change_pin", { p_token: getToken(), p_old: o, p_new: n }).then(function (res) {
+      loading(false);
+      if (res && res.ok) { say("تغيّر الرقم السري.", true); $("pin-form").reset(); }
+      else if (res && res.error === "wrong_pin") say("الرقم الحالي غلط.");
+      else say("ما تغيّر الرقم، جرب مرة ثانية.");
+    }).catch(function () { loading(false); say("صار خطأ بالاتصال."); });
+  }
+
   // ---------- routing ----------
   function route() {
     if (!state.me) return showLogin();
     var h = location.hash.replace("#", "");
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); }
+    else if (h === "me") { show("me"); renderMe(); }
     else { show("home"); renderHome(); }
   }
 
@@ -217,6 +296,9 @@
   $("pin-back").addEventListener("click", backToNames);
   $("login-pin").addEventListener("submit", submitPin);
   $("logout").addEventListener("click", logout);
+  $("photo-input").addEventListener("change", onPhoto);
+  $("photo-remove").addEventListener("click", function () { if (confirm("تحذف صورتك؟")) saveAvatar(null); });
+  $("pin-form").addEventListener("submit", onChangePin);
   $("admin-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-reset]"); if (b) resetPin(Number(b.dataset.reset), b.dataset.name);
   });
