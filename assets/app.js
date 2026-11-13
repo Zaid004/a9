@@ -597,17 +597,26 @@
     Array.prototype.forEach.call($("gallery-dots").children, function (d, k) { d.classList.toggle("on", k === i); });
   }
 
-  // ثبّت الإصبع على الصورة: تتوضح، وتشيل الإصبع: ترجع ضبابية
+  // من يلمس الصور (ثابت أو يسحب بيناتهن) تتوضح، ومن يشيل إصبعه وتوقف الحركة ترجع ضبابية
   function bindGalleryHold() {
     var track = $("gallery-track");
-    function clear(on, e) {
-      var s = e && e.target.closest ? e.target.closest(".slide") : null;
-      if (on && s) s.classList.add("clear");
-      if (!on) Array.prototype.forEach.call(track.querySelectorAll(".slide.clear"), function (x) { x.classList.remove("clear"); });
+    var touching = false, settle = null;
+    function on() { clearTimeout(settle); track.classList.add("holding"); }
+    function offSoon() {
+      clearTimeout(settle);
+      settle = setTimeout(function () { if (!touching) track.classList.remove("holding"); }, 220);
     }
-    track.addEventListener("pointerdown", function (e) { clear(true, e); });
-    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { track.addEventListener(ev, function () { clear(false); }); });
-    track.addEventListener("scroll", function () { clear(false); updateDots(); }, { passive: true });
+    function start() { touching = true; on(); }
+    function end() { touching = false; offSoon(); }
+    track.addEventListener("touchstart", start, { passive: true });
+    track.addEventListener("touchend", end);
+    track.addEventListener("touchcancel", end);
+    track.addEventListener("mousedown", start);
+    window.addEventListener("mouseup", function () { if (touching) end(); });
+    track.addEventListener("scroll", function () {
+      updateDots();
+      if (track.classList.contains("holding")) { clearTimeout(settle); if (!touching) offSoon(); }
+    }, { passive: true });
     track.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   }
 
