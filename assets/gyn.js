@@ -86,7 +86,7 @@
         '<div class="next-date">' + ICON.cal + dateHtml(x) + "</div>" +
         (x.exam ? "" : '<div class="next-time">' + ICON.clock + TIME + "</div>") +
         '<div class="next-place">' + ICON.pin + placeHtml(x) + "</div>" +
-        (x.t ? '<div class="topic">' + esc(x.t) + "</div>" : "");
+        (x.t && x.p === "lab" ? '<div class="topic">' + esc(x.t) + "</div>" : "");
     }
     var s = summary();
     var pct = Math.round((s.done / s.total) * 100);
@@ -112,11 +112,13 @@
         '<div class="' + cls + '">' +
           '<div class="date">' + dateHtml(x) + "</div>" +
           '<div class="body"><div class="place">' + placeHtml(x) + "</div>" +
-          (x.t ? '<div class="topic">' + esc(x.t) + "</div>" : "") + "</div>" +
+          (x.t && x.p === "lab" ? '<div class="topic">' + esc(x.t) + "</div>" : "") + "</div>" +
         "</div>";
     });
     document.getElementById("list").innerHTML = html;
   }
+
+  // موضوع السشن يطلع بس بأيام مختبر المهارات
 
   // ملخص للصفحة الرئيسية
   function summary() {
