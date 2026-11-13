@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -140,6 +140,7 @@
   function afterLogin() {
     $("me-btn").hidden = false;
     $("menu-btn").hidden = false;
+    startUnreadPolling();
     paintAvatar($("me-btn"), state.me);
     backToNames();
     route();
@@ -152,6 +153,7 @@
     $("me-btn").hidden = true;
     $("menu-btn").hidden = true;
     closeDrawer();
+    closeChat(); clearInterval(unreadTimer); setUnread(0);
     if (t) rpc("a9_logout", { p_token: t }).catch(function () {});
     location.hash = "";
     showLogin();
@@ -304,9 +306,10 @@
     $("drawer").setAttribute("aria-hidden", "false");
     $("menu-btn").setAttribute("aria-expanded", "true");
     $("drawer-backdrop").hidden = false;
-    var h = location.hash.replace("#", "") || "home";
+    var h = (location.hash.replace("#", "") || "home").split("/")[0];
+    if (h === "chat") h = "inbox";
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.dataset.nav === h); });
-    $("nav-admin").hidden = !(state.me && state.me.is_admin);
+    document.querySelectorAll(".admin-only").forEach(function (a) { a.hidden = !(state.me && state.me.is_admin); });
     if (state.members) renderMembers();
     loadMembers(true).then(renderMembers).catch(function () {
       $("members-list").innerHTML = '<p class="error" style="margin:12px 16px">ما گدرنا نجيب القائمة.</p>';
@@ -325,9 +328,165 @@
     paintAvatar($("person-avatar"), m);
     $("person-name").textContent = m.name;
     $("person-badge").innerHTML = m.is_admin ? '<span class="tag gold">الممثل</span>' : '<span class="tag preg">طالب</span>';
+    $("person-chat").hidden = !!(state.me && m.id === state.me.id);
+    $("person-chat").dataset.id = m.id;
     $("person").hidden = false;
   }
   function closePerson() { $("person").hidden = true; }
+
+  // ---------- messages ----------
+  var chat = { other: null, lastId: 0, timer: null, sending: false };
+  var unreadTimer = null;
+
+  function timeLabel(iso) {
+    var d = new Date(iso), now = new Date();
+    var same = d.toDateString() === now.toDateString();
+    var t = d.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" });
+    return same ? t : d.toLocaleDateString("ar-IQ", { day: "numeric", month: "short" }) + " " + t;
+  }
+
+  function setUnread(n) {
+    $("menu-dot").hidden = !n;
+    $("nav-unread").hidden = !n;
+    $("nav-unread").textContent = n > 99 ? "99+" : n;
+  }
+  function pollUnread() {
+    if (!state.me) return;
+    rpc("a9_unread", { p_token: getToken() }).then(setUnread).catch(function () {});
+  }
+  function startUnreadPolling() {
+    clearInterval(unreadTimer);
+    pollUnread();
+    unreadTimer = setInterval(pollUnread, 30000);
+  }
+
+  function openInbox() {
+    loading(true);
+    rpc("a9_conversations", { p_token: getToken() }).then(function (rows) {
+      loading(false);
+      rows = rows || [];
+      $("inbox-list").innerHTML = rows.length ? rows.map(function (c) {
+        var who = { id: c.other, name: c.name, avatar: c.avatar };
+        return '<a class="conv' + (c.unread ? " unread" : "") + '" href="#chat/' + c.other + '">' +
+          avatar(who) +
+          '<div class="conv-main"><div class="conv-top"><b>' + esc(c.name) + "</b>" +
+          (c.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
+          '<span class="conv-time">' + timeLabel(c.last_at) + "</span></div>" +
+          '<div class="conv-last">' + (c.last_mine ? "أنت: " : "") + esc(c.last_body) + "</div></div>" +
+          (c.unread ? '<b class="badge">' + c.unread + "</b>" : "") +
+          "</a>";
+      }).join("") : '<p class="sub center-text" style="padding:24px 16px">ماكو رسائل بعد.</p>';
+      pollUnread();
+    }).catch(function () { loading(false); $("inbox-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب الرسائل.</p>'; });
+  }
+
+  function bubble(m) {
+    return '<div class="msg ' + (m.mine ? "me" : "them") + '" data-id="' + m.id + '">' +
+      '<div class="bubble">' + esc(m.body).replace(/\n/g, "<br>") + "</div>" +
+      '<div class="msg-time">' + timeLabel(m.created_at) + (m.mine && m.read_at ? " &middot; مقروءة" : "") + "</div></div>";
+  }
+
+  function fetchChat(first) {
+    if (!chat.other) return;
+    var other = chat.other;
+    return rpc("a9_messages", { p_token: getToken(), p_other: other, p_after: first ? 0 : chat.lastId }).then(function (rows) {
+      if (chat.other !== other) return;
+      rows = rows || [];
+      var box = $("chat-msgs");
+      var nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      if (first) box.innerHTML = rows.length ? "" : '<p class="chat-empty">ابدأ المحادثة.</p>';
+      if (rows.length) {
+        var empty = box.querySelector(".chat-empty"); if (empty) empty.remove();
+        box.insertAdjacentHTML("beforeend", rows.map(bubble).join(""));
+        chat.lastId = rows[rows.length - 1].id;
+      }
+      if (first || nearBottom) box.scrollTop = box.scrollHeight;
+    });
+  }
+
+  function openChat(id) {
+    var m = (state.members || []).filter(function (x) { return x.id === id; })[0];
+    var go = function (person) {
+      chat.other = id; chat.lastId = 0;
+      paintAvatar($("chat-avatar"), person || { id: id, name: "?" });
+      $("chat-name").textContent = person ? person.name : "";
+      $("chat-msgs").innerHTML = "";
+      $("chat-input").value = "";
+      fetchChat(true).then(pollUnread).catch(function () {
+        $("chat-msgs").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نفتح المحادثة.</p>';
+      });
+      clearInterval(chat.timer);
+      chat.timer = setInterval(function () { if (!document.hidden) fetchChat(false); }, 4000);
+    };
+    if (m) go(m);
+    else loadMembers(true).then(function (all) { go(all.filter(function (x) { return x.id === id; })[0]); });
+  }
+
+  function closeChat() { clearInterval(chat.timer); chat.timer = null; chat.other = null; }
+
+  function sendMessage(e) {
+    e.preventDefault();
+    var input = $("chat-input");
+    var body = input.value.trim();
+    if (!body || chat.sending || !chat.other) return;
+    chat.sending = true;
+    rpc("a9_send", { p_token: getToken(), p_to: chat.other, p_body: body }).then(function (res) {
+      chat.sending = false;
+      if (res && res.ok) { input.value = ""; autoGrow(); fetchChat(false); }
+      else alert("ما انرسلت الرسالة.");
+    }).catch(function () { chat.sending = false; alert("صار خطأ بالاتصال، الرسالة ما انرسلت."); });
+  }
+
+  function autoGrow() {
+    var el = $("chat-input");
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  }
+
+  // ---------- admin event log ----------
+  var LOG_KINDS = {
+    register: "تسجيل جديد", login: "تسجيل دخول", login_failed: "رقم سري غلط", locked: "انقفل الحساب",
+    logout: "تسجيل خروج", avatar: "غيّر صورته", avatar_removed: "حذف صورته", pin_changed: "غيّر رقمه السري",
+    pin_reset: "صفّر رقم سري", message: "رسالة"
+  };
+  var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"]];
+  var LOG_GROUP = { message: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
+                    avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account" };
+  var logState = { rows: [], filter: "all", oldest: null };
+
+  function logLine(e) {
+    var who = esc(e.actor || "شخص غير معروف");
+    var what = LOG_KINDS[e.kind] || esc(e.kind);
+    var text;
+    if (e.kind === "message") text = "<b>" + who + "</b> راسل <b>" + esc(e.target || "") + "</b>";
+    else if (e.kind === "pin_reset") text = "<b>" + who + "</b> صفّر الرقم السري لـ <b>" + esc(e.target || "") + "</b>";
+    else text = "<b>" + who + "</b> &middot; " + what;
+    return '<div class="ev ev-' + (LOG_GROUP[e.kind] || "other") + '">' +
+      '<span class="ev-dot"></span>' +
+      '<div class="ev-main"><div class="ev-text">' + text + "</div>" +
+      (e.kind === "message" && e.detail ? '<div class="ev-detail">' + esc(e.detail) + "</div>" : "") +
+      '<div class="ev-time">' + new Date(e.at).toLocaleString("ar-IQ", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) + "</div></div></div>";
+  }
+
+  function renderLog() {
+    $("log-filters").innerHTML = LOG_FILTERS.map(function (f) {
+      return '<button type="button" class="chip' + (logState.filter === f[0] ? " on" : "") + '" data-filter="' + f[0] + '">' + f[1] + "</button>";
+    }).join("");
+    var rows = logState.rows.filter(function (e) { return logState.filter === "all" || LOG_GROUP[e.kind] === logState.filter; });
+    $("log-list").innerHTML = rows.length ? rows.map(logLine).join("") : '<p class="sub center-text" style="padding:24px 16px">ماكو أحداث.</p>';
+  }
+
+  function loadLog(more) {
+    loading(true);
+    rpc("a9_admin_events", { p_token: getToken(), p_before: more ? logState.oldest : null, p_limit: 100 }).then(function (rows) {
+      loading(false);
+      rows = rows || [];
+      logState.rows = more ? logState.rows.concat(rows) : rows;
+      if (rows.length) logState.oldest = rows[rows.length - 1].id;
+      $("log-more").hidden = rows.length < 100;
+      renderLog();
+    }).catch(function () { loading(false); $("log-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب السجل.</p>'; });
+  }
 
   // ---------- install to home screen ----------
   var installEvt = null;
@@ -350,7 +509,12 @@
   // ---------- routing ----------
   function route() {
     if (!state.me) return showLogin();
-    var h = location.hash.replace("#", "");
+    var parts = location.hash.replace("#", "").split("/");
+    var h = parts[0];
+    if (h !== "chat") closeChat();
+    if (h === "chat" && parts[1]) { show("chat"); openChat(Number(parts[1])); return; }
+    if (h === "inbox") { show("inbox"); openInbox(); return; }
+    if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); }
     else if (h === "me") { show("me"); renderMe(); $("install-row").hidden = isStandalone(); }
@@ -393,6 +557,19 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
+  $("person-chat").addEventListener("click", function () {
+    var id = $("person-chat").dataset.id; closePerson(); closeDrawer(); location.hash = "chat/" + id;
+  });
+  $("chat-form").addEventListener("submit", sendMessage);
+  $("chat-input").addEventListener("input", autoGrow);
+  $("chat-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && !/iphone|ipad|android/i.test(navigator.userAgent)) { e.preventDefault(); sendMessage(e); }
+  });
+  $("log-filters").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-filter]"); if (b) { logState.filter = b.dataset.filter; renderLog(); }
+  });
+  $("log-more").addEventListener("click", function () { loadLog(true); });
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) pollUnread(); });
   $("admin-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-reset]"); if (b) resetPin(Number(b.dataset.reset), b.dataset.name);
   });
