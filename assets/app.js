@@ -181,16 +181,19 @@
 
   function loadAdmin() {
     loading(true);
-    rpc("a9_admin_students", { p_token: getToken() }).then(withAvatars).then(function (rows) {
+    Promise.all([rpc("a9_admin_students", { p_token: getToken() }).then(withAvatars), loadPresence()]).then(function (res) {
+      var rows = res[0];
       loading(false);
+      var online = rows.filter(function (r) { return presence[r.id] && presence[r.id].online; }).length;
       var done = rows.filter(function (r) { return r.has_pin; }).length;
-      $("admin-summary").textContent = "سجّل " + done + " من " + rows.length + " طالب";
+      $("admin-summary").textContent = "سجّل " + done + " من " + rows.length + " طالب · متصل هسه " + online;
       $("admin-bar").style.width = Math.round((done / rows.length) * 100) + "%";
       $("admin-list").innerHTML = rows.map(function (r) {
+        var on = presence[r.id] && presence[r.id].online;
         return '<div class="arow">' +
-          avatar(r) +
+          '<span class="av-wrap">' + avatar(r) + onlineDot(r.id) + "</span>" +
           '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag gold">الممثل</span>' : "") + "</div>" +
-          '<div class="note">' + (r.has_pin ? "آخر دخول: " + fmtDate(r.last_login) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div></div>" +
+          '<div class="note' + (on ? " is-online" : "") + '">' + (r.has_pin ? seenLabel(presence[r.id]) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div></div>" +
           '<span class="tag ' + (r.has_pin ? "preg" : "cons") + '">' + (r.has_pin ? "مسجّل" : "ما سجّل") + "</span>" +
           (r.has_pin && !r.is_admin ? '<button type="button" class="small-btn" data-reset="' + r.id + '" data-name="' + esc(r.name) + '">تصفير الرقم</button>' : '<span class="small-spacer"></span>') +
           "</div>";
@@ -306,7 +309,7 @@
     var rows = all.filter(function (m) { return !q || m.name.indexOf(q) !== -1; });
     $("members-list").innerHTML = rows.map(function (m) {
       return '<button type="button" class="mrow' + (m.is_admin ? " rep" : "") + '" data-member="' + m.id + '">' +
-        avatar(m) +
+        '<span class="av-wrap">' + avatar(m) + onlineDot(m.id) + "</span>" +
         '<span class="nm">' + esc(m.name) + "</span>" +
         (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
         (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") +
@@ -336,6 +339,7 @@
     document.querySelectorAll(".admin-only").forEach(function (a) { a.hidden = !(state.me && state.me.is_admin); });
     showPanel("main");
     loadMembers(true).then(function (all) { $("members-count").textContent = all.length; }).catch(function () {});
+    loadPresence();
   }
   function showPanel(which) {
     $("drawer-main").hidden = which !== "main";
@@ -343,7 +347,7 @@
     if (which === "members") {
       $("members-search").value = "";
       if (state.members) renderMembers(); else $("members-list").innerHTML = "";
-      loadMembers(true).then(renderMembers).catch(function () {
+      Promise.all([loadMembers(true), loadPresence()]).then(renderMembers).catch(function () {
         $("members-list").innerHTML = '<p class="error" style="margin:12px 16px">ما گدرنا نجيب القائمة.</p>';
       });
     }
@@ -362,6 +366,8 @@
     $("person-name").textContent = m.name;
     $("person-badge").innerHTML = m.is_admin ? '<span class="tag gold">الممثل</span>' : '<span class="tag preg">طالب</span>';
     $("person-chat").hidden = !!(state.me && m.id === state.me.id);
+    var seen = state.me && state.me.is_admin && m.id !== state.me.id ? seenLabel(presence[m.id]) : "";
+    $("person-badge").insertAdjacentHTML("beforeend", seen ? '<p class="note person-seen' + (presence[m.id] && presence[m.id].online ? " is-online" : "") + '">' + esc(seen) + "</p>" : "");
     $("person-chat").dataset.id = m.id;
     $("person").hidden = false;
   }
@@ -387,7 +393,32 @@
   function pollUnread() {
     if (!state.me) return;
     rpc("a9_unread", { p_token: getToken() }).then(setUnread).catch(function () {});
+    if (!document.hidden) rpc("a9_ping", { p_token: getToken() }).catch(function () {});
   }
+
+  // ---------- presence (للممثل بس) ----------
+  var presence = {};
+  function loadPresence() {
+    if (!state.me || !state.me.is_admin) return Promise.resolve(presence);
+    return rpc("a9_admin_presence", { p_token: getToken() }).then(function (rows) {
+      presence = {};
+      (rows || []).forEach(function (r) { presence[r.id] = r; });
+      return presence;
+    }).catch(function () { return presence; });
+  }
+  function seenLabel(p) {
+    if (!p || !p.last_seen) return "ما ظهر بعد";
+    if (p.online) return "متصل هسه";
+    var mins = Math.floor((Date.now() - new Date(p.last_seen).getTime()) / 60000);
+    if (mins < 60) return "آخر ظهور: قبل " + Math.max(mins, 2) + " دقيقة";
+    var d = new Date(p.last_seen), now = new Date();
+    var time = d.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" });
+    if (d.toDateString() === now.toDateString()) return "آخر ظهور: اليوم " + time;
+    var y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return "آخر ظهور: أمس " + time;
+    return "آخر ظهور: " + d.toLocaleDateString("ar-IQ", { weekday: "long", day: "numeric", month: "long" }) + " " + time;
+  }
+  function onlineDot(id) { var p = presence[id]; return p && p.online ? '<i class="online-dot" title="متصل هسه"></i>' : ""; }
   function startUnreadPolling() {
     clearInterval(unreadTimer);
     pollUnread();
