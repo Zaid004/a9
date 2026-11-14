@@ -17,7 +17,7 @@
     { d: "2026-11-10", p: "lab",   t: "Obstetrical & gynecological history and examination, Foley's catheter & Pap smear" },
     { d: "2026-11-11", p: "cons",  t: "Obstetrical & gynecological history and examination, Foley's catheter & Pap smear" },
     { d: "2026-11-12", p: "preg",  t: "Labour management, Episiotomy" },
-    { d: "2026-11-15", p: "lab",   t: "Labour management, Episiotomy" },
+    { d: "2026-11-15", p: "lab",   t: "Labour management, Episiotomy", where: "بناية طب المجتمع · الطابق الثاني" },
     { d: "2026-11-16", p: "preg",  t: "Labour management, Episiotomy" },
     { d: "2026-11-17", p: "video", t: "Partogram" },
     { d: "2026-11-18", p: "lab",   t: "Partogram" },
@@ -59,7 +59,8 @@
     if (x.exam) return '<span class="tag exam">أسبوع الامتحانات</span>';
     if (x.special) return '<span class="tag special">' + esc(x.special) + "</span>" + (x.note ? '<span class="note">' + esc(x.note) + "</span>" : "");
     var p = P[x.p];
-    return '<span class="tag ' + p.cls + '">' + p.name + "</span>" + (p.note ? '<span class="note">' + p.note + "</span>" : "");
+    var note = x.where || p.note; // where: مكان خاص بهذا اليوم بدل المكان المعتاد
+    return '<span class="tag ' + p.cls + '">' + p.name + "</span>" + (note ? '<span class="note' + (x.where ? " where" : "") + '">' + esc(note) + "</span>" : "");
   }
 
   function dateHtml(x) {
@@ -133,7 +134,7 @@
       var diff = Math.round((start - t) / 86400000);
       info = {
         when: start <= t ? "اليوم" : diff === 1 ? "باچر" : WEEKDAYS[start.getDay()] + " " + fmt(start),
-        place: nx.exam ? "أسبوع الامتحانات" : nx.special ? nx.special : P[nx.p].name,
+        place: nx.exam ? "أسبوع الامتحانات" : nx.special ? nx.special : P[nx.p].name + (nx.where ? " · " + nx.where : ""),
         cls: nx.exam ? "exam" : nx.special ? "special" : P[nx.p].cls,
         time: nx.exam ? "" : TIME
       };
