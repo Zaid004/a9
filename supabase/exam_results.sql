@@ -1,0 +1,4 @@
+-- منصة A9: نتائج الامتحانات (انطبق على القاعدة مباشرة)
+-- الجدول private.exam_results (exam, subject, n, name, grade, max_grade, student_id)
+-- الدوال: a9_exam_mine (درجاتي وترتيبي) و a9_exam_group (مجموعتنا) و a9_exam_stage (كل المرحلة)، للمسجلين دخول بس.
+-- الدرجات نفسها بالقاعدة بس، مو بالريبو.

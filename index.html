@@ -117,6 +117,12 @@
       <div class="rot-count" id="rot-count"></div>
     </a>
 
+    <a href="#exam" class="exam-card">
+      <span class="exam-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 15.5h5M10 8.5h2"/></svg></span>
+      <span class="done-main"><b>نتائج امتحان المد</b><span class="done-sub" id="exam-mini">ENT · العيون · الكسور</span></span>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+    </a>
+
     <h2 class="section-title">الروتات المنتهية</h2>
     <div class="done-list">
       <a href="#ent" class="done-card">
@@ -133,6 +139,28 @@
         <span class="done-main"><b>روتة الكسور</b><span class="done-sub">انتهت</span></span>
       </div>
     </div>
+  </main>
+
+  <!-- نتائج امتحان المد -->
+  <main id="exam" class="view page narrow" hidden>
+    <a href="#" class="back">رجوع</a>
+    <h1>نتائج امتحان المد</h1>
+    <p class="sub">المرحلة الخامسة &middot; Block A</p>
+    <div class="subj-tabs" id="subj-tabs">
+      <button type="button" data-subj="ent" class="on">ENT</button>
+      <button type="button" data-subj="eye">العيون</button>
+      <button type="button" data-subj="ortho">الكسور</button>
+    </div>
+
+    <section class="card my-exam" id="my-exam"></section>
+
+    <h2 class="card-title section-h">مجموعتنا</h2>
+    <div id="exam-group" class="list"></div>
+
+    <h2 class="card-title section-h">كل المرحلة <span class="note" id="stage-count"></span></h2>
+    <input id="stage-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+    <div id="exam-stage" class="list"></div>
+    <button type="button" class="btn ghost" id="stage-more" hidden>عرض الكل</button>
   </main>
 
   <!-- روتة ENT -->
