@@ -1162,7 +1162,8 @@
   // ---------- midterm results ----------
   var EXAM = "mid1";
   var SUBJ_NAME = { ent: "ENT", eye: "العيون", ortho: "الكسور" };
-  var exam = { subj: "ent", mine: null, stage: {}, group: {}, showAll: false };
+  var exam = { subj: "ent", mine: null, stage: {}, group: {}, showAll: false, sort: "abc" };
+  function byName(a, b) { return a.name.localeCompare(b.name, "ar"); }
   function fmtNum(x) { return x == null ? "—" : String(Number(x)); }
   function pct(g, mx) { return g == null ? 0 : Math.round(Number(g) / Number(mx) * 100); }
 
@@ -1204,7 +1205,7 @@
 
   function gradeRow(rank, person, g, mx, mine, ours) {
     return '<div class="grow exam-row' + (mine ? " mine" : ours ? " ours" : "") + '">' +
-      '<span class="rk">' + rank + "</span>" + (person.id ? avatar(person) : "") +
+      (exam.sort === "grade" ? '<span class="rk">' + rank + "</span>" : "") + (person.id ? avatar(person) : "") +
       '<span class="nm">' + esc(person.name) + (mine ? ' <span class="tag special">أنت</span>' : "") + "</span>" +
       '<span class="gcell"><b class="gval">' + fmtNum(g) + '</b><span class="mini-bar"><i style="width:' + pct(g, mx) + '%"></i></span></span></div>';
   }
@@ -1214,10 +1215,11 @@
     var draw = function (rows) {
       if (exam.subj !== s) return;
       var rank = 0, prev = null, i = 0;
-      $("exam-group").innerHTML = rows.map(function (x) {
-        i++; if (x.grade !== prev) { rank = i; prev = x.grade; }
+      var ranked = rows.map(function (x) { i++; if (x.grade !== prev) { rank = i; prev = x.grade; } return Object.assign({ rank: rank }, x); });
+      if (exam.sort === "abc") ranked.sort(byName);
+      $("exam-group").innerHTML = ranked.map(function (x) {
         var m = memberById(x.id) || x;
-        return gradeRow(rank, { id: x.id, name: x.name, avatar: m.avatar }, x.grade, x.max_grade, state.me && x.id === state.me.id, false);
+        return gradeRow(x.rank, { id: x.id, name: x.name, avatar: m.avatar }, x.grade, x.max_grade, state.me && x.id === state.me.id, false);
       }).join("");
     };
     if (exam.group[s]) return draw(exam.group[s]);
@@ -1239,7 +1241,8 @@
   function drawStage() {
     var rows = exam.stage[exam.subj] || [];
     var q = $("stage-search").value.trim();
-    var list = q ? rows.filter(function (x) { return x.name.indexOf(q) !== -1; }) : rows;
+    var list = q ? rows.filter(function (x) { return x.name.indexOf(q) !== -1; }) : rows.slice();
+    if (exam.sort === "abc") list.sort(byName);
     var limit = q || exam.showAll ? list.length : 50;
     var myName = state.me ? state.me.name : "";
     $("stage-count").textContent = "(" + rows.length + " طالب)";
@@ -1344,6 +1347,12 @@
     renderExam();
   });
   $("stage-search").addEventListener("input", drawStage);
+  $("exam-sort").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-sort]"); if (!b) return;
+    exam.sort = b.dataset.sort;
+    Array.prototype.forEach.call($("exam-sort").children, function (x) { x.classList.toggle("on", x === b); });
+    loadExamGroup(); drawStage();
+  });
   $("stage-more").addEventListener("click", function () { exam.showAll = true; drawStage(); });
   $("notif-row").addEventListener("click", onNotifRow);
   $("intro-notif").addEventListener("click", onIntroNotif);
