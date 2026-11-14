@@ -950,3 +950,12 @@ button.msg-who { background: none; border: 0; padding: 0; font: inherit; font-si
 .sort-row { display: flex; align-items: center; gap: 10px; margin: 18px 4px 0; }
 .sort-row .chips { margin: 0; }
 .note.where { color: var(--cons); font-weight: 700; }
+
+/* ---------- متصل / آخر ظهور ---------- */
+.av-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.online-dot {
+  position: absolute; bottom: 0; inset-inline-start: 0; width: 11px; height: 11px; border-radius: 50%;
+  background: #22c55e; box-shadow: 0 0 0 2px var(--surface);
+}
+.note.is-online { color: #16a34a; font-weight: 700; }
+.person-seen { margin: 6px 0 0; }
