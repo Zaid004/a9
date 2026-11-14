@@ -32,8 +32,11 @@
   function avatarHue(id) { return (id * 47) % 360; }
   function avatar(s, extra) {
     var cls = "avatar" + (extra ? " " + extra : "");
-    if (s.avatar) return '<span class="' + cls + ' has-img"><img src="' + esc(s.avatar) + '" alt="" /></span>';
-    return '<span class="' + cls + '" style="--h:' + avatarHue(s.id) + '">' + esc(initials(s.name)) + "</span>";
+    var a = s.avatar
+      ? '<span class="' + cls + ' has-img"><img src="' + esc(s.avatar) + '" alt="" /></span>'
+      : '<span class="' + cls + '" style="--h:' + avatarHue(s.id) + '">' + esc(initials(s.name)) + "</span>";
+    // الممثل يشوف نقطة خضرة على صورة أي طالب متصل، بكل مكان
+    return typeof onlineDot === "function" && s.id && onlineDot(s.id) ? '<span class="av-wrap">' + a + onlineDot(s.id) + "</span>" : a;
   }
   function paintAvatar(el, s) {
     el.style.setProperty("--h", avatarHue(s.id));
@@ -144,6 +147,7 @@
     $("menu-btn").hidden = false;
     startUnreadPolling();
     syncPush();
+    loadPresence();
     setTimeout(maybeShowIntro, 600);
     paintAvatar($("me-btn"), state.me);
     backToNames();
@@ -191,7 +195,7 @@
       $("admin-list").innerHTML = rows.map(function (r) {
         var on = presence[r.id] && presence[r.id].online;
         return '<div class="arow">' +
-          '<span class="av-wrap">' + avatar(r) + onlineDot(r.id) + "</span>" +
+          avatar(r) +
           '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag gold">الممثل</span>' : "") + "</div>" +
           '<div class="note' + (on ? " is-online" : "") + '">' + (r.has_pin ? seenLabel(presence[r.id]) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div></div>" +
           '<span class="tag ' + (r.has_pin ? "preg" : "cons") + '">' + (r.has_pin ? "مسجّل" : "ما سجّل") + "</span>" +
@@ -309,8 +313,8 @@
     var rows = all.filter(function (m) { return !q || m.name.indexOf(q) !== -1; });
     $("members-list").innerHTML = rows.map(function (m) {
       return '<button type="button" class="mrow' + (m.is_admin ? " rep" : "") + '" data-member="' + m.id + '">' +
-        '<span class="av-wrap">' + avatar(m) + onlineDot(m.id) + "</span>" +
-        '<span class="nm">' + esc(m.name) + "</span>" +
+        avatar(m) +
+        '<span class="nm">' + esc(m.name) + seenLine(m.id) + "</span>" +
         (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
         (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") +
         "</button>";
@@ -394,6 +398,7 @@
     if (!state.me) return;
     rpc("a9_unread", { p_token: getToken() }).then(setUnread).catch(function () {});
     if (!document.hidden) rpc("a9_ping", { p_token: getToken() }).catch(function () {});
+    if (state.me.is_admin && !document.hidden) loadPresence().then(refreshPresenceViews);
   }
 
   // ---------- presence (للممثل بس) ----------
@@ -405,6 +410,12 @@
       (rows || []).forEach(function (r) { presence[r.id] = r; });
       return presence;
     }).catch(function () { return presence; });
+  }
+  // نحدّث الشاشة الحالية من تتغير حالة الاتصال
+  function refreshPresenceViews() {
+    var h = (location.hash.replace("#", "") || "home").split("/")[0];
+    if (document.body.classList.contains("drawer-open") && !$("drawer-members").hidden) renderMembers();
+    if (h === "chat" && chat.kind === "dm" && chat.other) $("chat-subline").innerHTML = seenLine(chat.other);
   }
   function seenLabel(p) {
     if (!p || !p.last_seen) return "ما ظهر بعد";
@@ -418,7 +429,15 @@
     if (d.toDateString() === y.toDateString()) return "آخر ظهور: أمس " + time;
     return "آخر ظهور: " + d.toLocaleDateString("ar-IQ", { weekday: "long", day: "numeric", month: "long" }) + " " + time;
   }
-  function onlineDot(id) { var p = presence[id]; return p && p.online ? '<i class="online-dot" title="متصل هسه"></i>' : ""; }
+  function onlineDot(id) {
+    if (!state.me || !state.me.is_admin || id === state.me.id) return "";
+    var p = presence[id]; return p && p.online ? '<i class="online-dot" title="متصل هسه"></i>' : "";
+  }
+  function seenLine(id) {
+    if (!state.me || !state.me.is_admin || id === state.me.id) return "";
+    var p = presence[id];
+    return '<span class="seen-line' + (p && p.online ? " is-online" : "") + '">' + esc(seenLabel(p)) + "</span>";
+  }
   function startUnreadPolling() {
     clearInterval(unreadTimer);
     pollUnread();
@@ -427,7 +446,7 @@
 
   function openInbox() {
     loading(true);
-    var dms = rpc("a9_conversations", { p_token: getToken() });
+    var dms = loadPresence().then(function () { return rpc("a9_conversations", { p_token: getToken() }); });
     var groups = rpc("a9_group_list", { p_token: getToken() }).catch(function () { return []; });
     Promise.all([dms, groups]).then(function (res) {
       loading(false);
@@ -450,7 +469,7 @@
           '<div class="conv-main"><div class="conv-top"><b>' + esc(c.name) + "</b>" +
           (c.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
           '<span class="conv-time">' + timeLabel(c.last_at) + "</span></div>" +
-          '<div class="conv-last">' + (c.last_mine ? "أنت: " : "") + esc(c.last_body) + "</div></div>" +
+          '<div class="conv-last">' + (c.last_mine ? "أنت: " : "") + esc(c.last_body) + "</div>" + seenLine(c.other) + "</div>" +
           (c.unread ? '<b class="badge">' + c.unread + "</b>" : "") +
           "</a>";
       }).join("") : '<p class="sub center-text" style="padding:24px 16px">ماكو رسائل بعد. اضغط "محادثة جديدة" حتى تبدي.</p>';
@@ -461,6 +480,7 @@
   // ----- new chat / add members picker -----
   var picker = { mode: "new", chosen: {} };
   function openPicker(mode) {
+    loadPresence().then(function () { if (location.hash.indexOf("#new") === 0) renderPicker(); });
     picker = { mode: mode, chosen: {} };
     var add = mode === "add";
     $("new-title").textContent = add ? "إضافة أعضاء" : "محادثة جديدة";
@@ -479,7 +499,7 @@
     $("new-list").innerHTML = list.map(function (m) {
       var on = !!picker.chosen[m.id];
       return '<button type="button" class="pick' + (on ? " on" : "") + '" data-pick="' + m.id + '">' + avatar(m) +
-        '<span class="nm">' + esc(m.name) + "</span>" + (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
+        '<span class="nm">' + esc(m.name) + seenLine(m.id) + "</span>" + (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") +
         '<span class="check">' + (on ? '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : "") + "</span></button>";
     }).join("") || '<p class="sub center-text" style="padding:16px">' + (q ? "ماكو اسم بهذا البحث" : "ماكو طلاب") + "</p>";
     var ids = Object.keys(picker.chosen);
@@ -598,7 +618,7 @@
       $("chat-avatar").classList.remove("group-av");
       paintAvatar($("chat-avatar"), person || { id: id, name: "?" });
       $("chat-name").textContent = person ? person.name : "";
-      $("chat-subline").textContent = "";
+      $("chat-subline").innerHTML = seenLine(id);
       $("chat-msgs").innerHTML = "";
       $("chat-input").value = "";
       fetchChat(true).then(pollUnread).catch(function () {
@@ -629,13 +649,14 @@
   }
 
   function openGroupInfo() {
+    loadPresence();
     if (chat.kind !== "group" || !chat.info) return;
     var info = chat.info, mem = state.members || [];
     $("ginfo-name").textContent = info.name;
     $("ginfo-count").textContent = (info.members || []).length + " أعضاء";
     $("ginfo-members").innerHTML = (info.members || []).map(function (m) {
       var full = mem.filter(function (x) { return x.id === m.id; })[0] || m;
-      return '<div class="cmember">' + avatar(full) + '<span class="nm">' + esc(m.name) + "</span>" +
+      return '<div class="cmember">' + avatar(full) + '<span class="nm">' + esc(m.name) + seenLine(m.id) + "</span>" +
         (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") + (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") + "</div>";
     }).join("");
     $("ginfo").hidden = false;
