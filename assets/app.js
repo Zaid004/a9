@@ -44,7 +44,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -802,6 +802,7 @@
     if (h === "inbox") { show("inbox"); openInbox(); return; }
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "ent") { show("ent"); openEnt(); return; }
+    if (h === "exam") { show("exam"); openExam(); return; }
     if (h === "rot-gyn") { show("rot-gyn"); openRotGyn(); return; }
     if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
@@ -1158,6 +1159,97 @@
     consultCall("a9_admin_consult_assign", { p_student: Number(s.dataset.move), p_group: g });
   }
 
+  // ---------- midterm results ----------
+  var EXAM = "mid1";
+  var SUBJ_NAME = { ent: "ENT", eye: "العيون", ortho: "الكسور" };
+  var exam = { subj: "ent", mine: null, stage: {}, group: {}, showAll: false };
+  function fmtNum(x) { return x == null ? "—" : String(Number(x)); }
+  function pct(g, mx) { return g == null ? 0 : Math.round(Number(g) / Number(mx) * 100); }
+
+  function renderExamMini() {
+    rpc("a9_exam_mine", { p_token: getToken(), p_exam: EXAM }).then(function (rows) {
+      exam.mine = rows || [];
+      if (!exam.mine.length) return;
+      $("exam-mini").innerHTML = ["ent", "eye", "ortho"].map(function (s) {
+        var r = exam.mine.filter(function (x) { return x.subject === s; })[0];
+        return r ? SUBJ_NAME[s] + ' <bdi dir="ltr">' + fmtNum(r.grade) + "/" + fmtNum(r.max_grade) + "</bdi>" : "";
+      }).filter(Boolean).join(" &middot; ");
+    }).catch(function () {});
+  }
+
+  function openExam() {
+    exam.showAll = false; $("stage-search").value = "";
+    Array.prototype.forEach.call($("subj-tabs").children, function (b) { b.classList.toggle("on", b.dataset.subj === exam.subj); });
+    var mine = exam.mine ? Promise.resolve(exam.mine) : rpc("a9_exam_mine", { p_token: getToken(), p_exam: EXAM }).then(function (r) { exam.mine = r || []; return exam.mine; });
+    loading(true);
+    Promise.all([mine, loadMembers().catch(function () { return []; })]).then(function () { loading(false); renderExam(); })
+      .catch(function () { loading(false); $("my-exam").innerHTML = '<p class="error">ما گدرنا نجيب النتائج.</p>'; });
+  }
+
+  function renderExam() {
+    var s = exam.subj;
+    var r = (exam.mine || []).filter(function (x) { return x.subject === s; })[0];
+    $("my-exam").innerHTML = r
+      ? '<span class="grade-label">درجتك بـ' + SUBJ_NAME[s] + "</span>" +
+        '<div class="grade-big">' + fmtNum(r.grade) + ' <small>/ ' + fmtNum(r.max_grade) + "</small></div>" +
+        '<div class="bar"><i style="width:' + pct(r.grade, r.max_grade) + '%"></i></div>' +
+        '<div class="rank-row">' +
+          '<div><b>' + r.group_rank + ' <small>من ' + r.group_total + '</small></b><span>ترتيبك بالمجموعة</span></div>' +
+          '<div><b>' + r.stage_rank + ' <small>من ' + r.stage_total + '</small></b><span>ترتيبك بالمرحلة</span></div>' +
+        "</div>" +
+        '<div class="avg-row"><span>معدل المجموعة <b>' + fmtNum(r.group_avg) + '</b></span><span>معدل المرحلة <b>' + fmtNum(r.stage_avg) + "</b></span></div>"
+      : '<p class="note center-text">ما لگينا درجتك بهالمادة.</p>';
+    loadExamGroup(); loadExamStage();
+  }
+
+  function gradeRow(rank, person, g, mx, mine, ours) {
+    return '<div class="grow exam-row' + (mine ? " mine" : ours ? " ours" : "") + '">' +
+      '<span class="rk">' + rank + "</span>" + (person.id ? avatar(person) : "") +
+      '<span class="nm">' + esc(person.name) + (mine ? ' <span class="tag special">أنت</span>' : "") + "</span>" +
+      '<span class="gcell"><b class="gval">' + fmtNum(g) + '</b><span class="mini-bar"><i style="width:' + pct(g, mx) + '%"></i></span></span></div>';
+  }
+
+  function loadExamGroup() {
+    var s = exam.subj;
+    var draw = function (rows) {
+      if (exam.subj !== s) return;
+      var rank = 0, prev = null, i = 0;
+      $("exam-group").innerHTML = rows.map(function (x) {
+        i++; if (x.grade !== prev) { rank = i; prev = x.grade; }
+        var m = memberById(x.id) || x;
+        return gradeRow(rank, { id: x.id, name: x.name, avatar: m.avatar }, x.grade, x.max_grade, state.me && x.id === state.me.id, false);
+      }).join("");
+    };
+    if (exam.group[s]) return draw(exam.group[s]);
+    rpc("a9_exam_group", { p_token: getToken(), p_exam: EXAM, p_subject: s }).then(function (rows) { exam.group[s] = rows || []; draw(exam.group[s]); })
+      .catch(function () { $("exam-group").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب درجات المجموعة.</p>'; });
+  }
+
+  function loadExamStage() {
+    var s = exam.subj;
+    if (exam.stage[s]) return drawStage();
+    $("exam-stage").innerHTML = '<p class="note center-text" style="padding:16px">جاري التحميل</p>';
+    rpc("a9_exam_stage", { p_token: getToken(), p_exam: EXAM, p_subject: s }).then(function (rows) {
+      var rank = 0, prev = null;
+      exam.stage[s] = (rows || []).map(function (x, i) { if (x.grade !== prev) { rank = i + 1; prev = x.grade; } x.rank = rank; return x; });
+      if (exam.subj === s) drawStage();
+    }).catch(function () { $("exam-stage").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب درجات المرحلة.</p>'; });
+  }
+
+  function drawStage() {
+    var rows = exam.stage[exam.subj] || [];
+    var q = $("stage-search").value.trim();
+    var list = q ? rows.filter(function (x) { return x.name.indexOf(q) !== -1; }) : rows;
+    var limit = q || exam.showAll ? list.length : 50;
+    var myName = state.me ? state.me.name : "";
+    $("stage-count").textContent = "(" + rows.length + " طالب)";
+    $("exam-stage").innerHTML = list.slice(0, limit).map(function (x) {
+      return gradeRow(x.rank, { name: x.name }, x.grade, x.max_grade, x.ours && x.name === myName, x.ours);
+    }).join("") || '<p class="note center-text" style="padding:16px">ماكو اسم بهذا البحث</p>';
+    $("stage-more").hidden = !!q || exam.showAll || list.length <= 50;
+    $("stage-more").textContent = "عرض الكل (" + list.length + ")";
+  }
+
   // ---------- grades ----------
   var myGrades = null;
   function fmtGrade(g) {
@@ -1204,6 +1296,7 @@
   }
 
   function renderHome() {
+    renderExamMini();
     loadMyGrades().then(renderEntMini).catch(function () {});
     renderGallery();
     loadGallery().then(renderGallery).catch(function () {});
@@ -1244,6 +1337,14 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
+  $("subj-tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-subj]"); if (!b) return;
+    exam.subj = b.dataset.subj; exam.showAll = false; $("stage-search").value = "";
+    Array.prototype.forEach.call($("subj-tabs").children, function (x) { x.classList.toggle("on", x === b); });
+    renderExam();
+  });
+  $("stage-search").addEventListener("input", drawStage);
+  $("stage-more").addEventListener("click", function () { exam.showAll = true; drawStage(); });
   $("notif-row").addEventListener("click", onNotifRow);
   $("intro-notif").addEventListener("click", onIntroNotif);
   $("intro-close").addEventListener("click", closeIntro);
