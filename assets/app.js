@@ -1194,10 +1194,10 @@
       ? '<span class="grade-label">درجتك بـ' + SUBJ_NAME[s] + "</span>" +
         '<div class="grade-big">' + fmtNum(r.grade) + ' <small>/ ' + fmtNum(r.max_grade) + "</small></div>" +
         '<div class="bar"><i style="width:' + pct(r.grade, r.max_grade) + '%"></i></div>' +
-        '<div class="rank-row">' +
+        (exam.sort === "grade" ? '<div class="rank-row">' +
           '<div><b>' + r.group_rank + ' <small>من ' + r.group_total + '</small></b><span>ترتيبك بالمجموعة</span></div>' +
           '<div><b>' + r.stage_rank + ' <small>من ' + r.stage_total + '</small></b><span>ترتيبك بالمرحلة</span></div>' +
-        "</div>" +
+        "</div>" : "") +
         '<div class="avg-row"><span>معدل المجموعة <b>' + fmtNum(r.group_avg) + '</b></span><span>معدل المرحلة <b>' + fmtNum(r.stage_avg) + "</b></span></div>"
       : '<p class="note center-text">ما لگينا درجتك بهالمادة.</p>';
     loadExamGroup(); loadExamStage();
@@ -1351,7 +1351,7 @@
     var b = e.target.closest("[data-sort]"); if (!b) return;
     exam.sort = b.dataset.sort;
     Array.prototype.forEach.call($("exam-sort").children, function (x) { x.classList.toggle("on", x === b); });
-    loadExamGroup(); drawStage();
+    renderExam();
   });
   $("stage-more").addEventListener("click", function () { exam.showAll = true; drawStage(); });
   $("notif-row").addEventListener("click", onNotifRow);
