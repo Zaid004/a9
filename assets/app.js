@@ -1404,6 +1404,7 @@
       }).join("") : '<p class="note center-text" style="padding:16px">ماكو تحديات. اختار طالب من تحت وتحداه.</p>';
       var hot = games.filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
       $("nav-xo").hidden = !hot; $("nav-xo").textContent = hot;
+      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "لعبة XO · تحدى زملاءك";
     }).catch(function () { $("xo-games").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب التحديات.</p>'; });
   }
   function renderXoPeople() {
@@ -1527,8 +1528,18 @@
     }).catch(function () { $("ent-list").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب الدرجات.</p>'; });
   }
 
+  function refreshXoBadge() {
+    rpc("a9_xo_list", { p_token: getToken() }).then(function (d) {
+      var hot = (d.games || []).filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
+      $("nav-xo").hidden = !hot; $("nav-xo").textContent = hot;
+      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "لعبة XO · تحدى زملاءك";
+      $("games-mini").classList.toggle("hot", !!hot);
+    }).catch(function () {});
+  }
+
   function renderHome() {
     renderExamMini();
+    refreshXoBadge();
     loadMyGrades().then(renderEntMini).catch(function () {});
     renderGallery();
     loadGallery().then(renderGallery).catch(function () {});
