@@ -1554,7 +1554,7 @@
       var mine = d.my_open
         ? '<div class="xo-game hot">' + avatar(state.me || { name: "" }) + '<div class="ainfo"><b>مباراتك مفتوحة</b><span class="note">بانتظار أي طالب يدخل يلعب ضدك</span></div>' +
           '<button type="button" class="cbtn leave" data-opencancel="' + d.my_open + '">إلغاء</button></div>'
-        : '<div class="xo-game"><div class="ainfo"><b>سوّي مباراة مفتوحة</b><span class="note">تطلع لكل الطلاب، وأول واحد يدخل يلعب ضدك. تنلغي إذا محد دخل خلال نص ساعة</span></div>' +
+        : '<div class="xo-game"><div class="ainfo"><b>سوّي مباراة مفتوحة</b></div>' +
           '<button type="button" class="cbtn join" data-opencreate="1">سوّي</button></div>';
       var others = (d.open || []).map(function (o) {
         var c = o.creator;
