@@ -964,3 +964,52 @@ button.msg-who { background: none; border: 0; padding: 0; font: inherit; font-si
 .conv .seen-line { margin-top: 1px; }
 .chat-subline .seen-line { display: inline; font-size: .78rem; }
 .av-wrap .avatar { flex-shrink: 0; }
+
+/* ---------- لعبة XO ---------- */
+.xo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 14px; }
+.xo-stats > div { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 10px; text-align: center; display: flex; flex-direction: column; }
+.xo-stats b { font-size: 1.5rem; }
+.xo-stats span { font-size: .82rem; color: var(--muted); }
+.xo-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.xo-mode {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 10px; cursor: pointer;
+  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow);
+  transition: transform .2s, border-color .2s;
+}
+.xo-mode:hover { transform: translateY(-2px); border-color: var(--primary); }
+.xo-mode span:last-child { font-size: .8rem; color: var(--muted); }
+.xo-mode-ico { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; color: #fff; background: linear-gradient(135deg, #0f172a, #334155); }
+.xo-mode-ico.o { background: linear-gradient(135deg, #be185d, #f472b6); }
+.xo-game, .xo-person { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); }
+.xo-game:first-child, .xo-person:first-child { border-top: 0; }
+.xo-game .ainfo { display: flex; flex-direction: column; }
+.xo-game.hot { background: color-mix(in srgb, var(--primary-soft) 60%, transparent); }
+.xo-game .cbtn + .cbtn { margin-inline-start: 4px; }
+a.cbtn { text-decoration: none; }
+
+.xo-players { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 10px; }
+.xo-p { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 18px; border: 2px solid transparent; transition: border-color .2s, background .2s; }
+.xo-p.active { border-color: var(--primary); background: var(--surface); box-shadow: var(--shadow); }
+.xo-p .avatar { width: 46px; height: 46px; }
+.xo-av { display: grid; background: linear-gradient(135deg, #0f172a, #334155); color: #fff; }
+.xo-av.o { background: linear-gradient(135deg, #be185d, #f472b6); }
+.xo-p b { font-size: .92rem; text-align: center; }
+.xo-mark { font-weight: 800; font-size: 1.1rem; }
+.xo-mark.x { color: var(--primary); }
+.xo-mark.o { color: #db2777; }
+.xo-score { font-weight: 800; font-size: 1.2rem; color: var(--muted); direction: ltr; }
+.xo-level { display: flex; justify-content: center; gap: 8px; margin-bottom: 6px; }
+.xo-status { text-align: center; font-weight: 800; font-size: 1.15rem; margin: 6px 0 12px; min-height: 1.6em; }
+.xo-status.won { color: #16a34a; }
+.xo-status.lost { color: var(--exam); }
+.xo-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(100%, 360px); margin: 0 auto; aspect-ratio: 1; }
+.xo-cell {
+  font: inherit; font-size: 3rem; font-weight: 800; border: 0; border-radius: 20px; cursor: pointer;
+  background: var(--surface); box-shadow: var(--shadow); color: var(--text); transition: transform .12s, background .2s;
+}
+.xo-cell:not([disabled]):hover { transform: scale(1.03); background: var(--primary-soft); }
+.xo-cell[disabled] { cursor: default; }
+.xo-cell.x { color: var(--primary); }
+.xo-cell.o { color: #db2777; }
+.xo-cell.win { background: color-mix(in srgb, #22c55e 22%, var(--surface)); animation: rise .3s ease both; }
+.xo-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }

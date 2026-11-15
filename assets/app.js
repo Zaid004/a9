@@ -47,7 +47,7 @@
   function loading(on) { $("loading").hidden = !on; }
 
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam", "xo", "xoplay"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -339,6 +339,7 @@
     $("drawer-backdrop").hidden = false;
     var h = (location.hash.replace("#", "") || "home").split("/")[0];
     if (h === "chat" || h === "gchat" || h === "new") h = "inbox";
+    if (h === "xoplay") h = "xo";
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.dataset.nav === h); });
     document.querySelectorAll(".admin-only").forEach(function (a) { a.hidden = !(state.me && state.me.is_admin); });
     showPanel("main");
@@ -855,6 +856,10 @@
     if (h === "log" && state.me.is_admin) { show("log"); logState.filter = "all"; loadLog(false); return; }
     if (h === "ent") { show("ent"); openEnt(); return; }
     if (h === "exam") { show("exam"); openExam(); return; }
+    if (h !== "xoplay") stopXoPoll();
+    if (h === "xo" && parts[1]) { show("xoplay"); openXoOnline(Number(parts[1])); return; }
+    if (h === "xo") { show("xo"); openXoHome(); return; }
+    if (h === "xoplay") { show("xoplay"); openXoLocal(parts[1] === "friend" ? "friend" : "ai"); return; }
     if (h === "rot-gyn") { show("rot-gyn"); openRotGyn(); return; }
     if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
@@ -1305,6 +1310,178 @@
     $("stage-more").textContent = "عرض الكل (" + list.length + ")";
   }
 
+  // ---------- XO game ----------
+  var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  function xoWinner(b) {
+    for (var i = 0; i < LINES.length; i++) {
+      var l = LINES[i];
+      if (b[l[0]] !== "." && b[l[0]] === b[l[1]] && b[l[0]] === b[l[2]]) return { w: b[l[0]], line: l };
+    }
+    return b.indexOf(".") === -1 ? { w: "D", line: [] } : null;
+  }
+  // الكمبيوتر: صعب = minimax (ما يخسر)، سهل = أحياناً يغلط
+  function minimax(b, me, turn, depth) {
+    var r = xoWinner(b);
+    if (r) return { s: r.w === me ? 10 - depth : r.w === "D" ? 0 : depth - 10 }; // يفضّل الفوز الأسرع والخسارة الأبطأ
+    var best = { s: turn === me ? -99 : 99, i: -1 };
+    for (var i = 0; i < 9; i++) if (b[i] === ".") {
+      var s = minimax(b.slice(0, i) + turn + b.slice(i + 1), me, turn === "X" ? "O" : "X", depth + 1).s;
+      if (turn === me ? s > best.s : s < best.s) best = { s: s, i: i };
+    }
+    return best;
+  }
+  function aiMove(b, me, level) {
+    var free = []; for (var i = 0; i < 9; i++) if (b[i] === ".") free.push(i);
+    if (level === "easy" && Math.random() < 0.55) return free[Math.floor(Math.random() * free.length)];
+    if (free.length === 9) return [0, 2, 4, 6, 8][Math.floor(Math.random() * 5)];
+    return minimax(b, me, me, 0).i;
+  }
+
+  var xo = { mode: null, board: ".........", turn: "X", level: "hard", game: null, poll: null, busy: false, scores: { X: 0, O: 0, D: 0 } };
+  function stopXoPoll() { clearInterval(xo.poll); xo.poll = null; }
+
+  function drawBoard(board, winLine, clickable) {
+    $("xo-board").innerHTML = board.split("").map(function (c, i) {
+      var win = winLine && winLine.indexOf(i) !== -1;
+      return '<button type="button" class="xo-cell' + (c === "X" ? " x" : c === "O" ? " o" : "") + (win ? " win" : "") + '" data-cell="' + i + '"' +
+        (!clickable || c !== "." ? " disabled" : "") + ">" + (c === "." ? "" : c) + "</button>";
+    }).join("");
+  }
+  function playerChip(p, mark, active) {
+    return '<div class="xo-p' + (active ? " active" : "") + '">' + (p.id ? avatar(p) : '<span class="avatar xo-av ' + (mark === "O" ? "o" : "") + '">' + esc(p.name[0] || "") + "</span>") +
+      '<b>' + esc(p.name) + '</b><span class="xo-mark ' + (mark === "O" ? "o" : "x") + '">' + mark + "</span></div>";
+  }
+
+  // ----- local: AI / friend -----
+  function openXoLocal(mode) {
+    xo.mode = mode; xo.board = "........."; xo.turn = "X"; xo.game = null; xo.scores = { X: 0, O: 0, D: 0 };
+    $("xo-level").hidden = mode !== "ai";
+    Array.prototype.forEach.call($("xo-level").children, function (b) { b.classList.toggle("on", b.dataset.level === xo.level); });
+    renderLocal();
+  }
+  function renderLocal() {
+    var me = state.me ? { id: state.me.id, name: state.me.name.split(" ")[0], avatar: state.me.avatar } : { name: "أنت" };
+    var px = xo.mode === "ai" ? me : { name: "لاعب X" }, po = xo.mode === "ai" ? { name: "الكمبيوتر" } : { name: "لاعب O" };
+    var r = xoWinner(xo.board);
+    $("xo-players").innerHTML = playerChip(px, "X", !r && xo.turn === "X") + '<div class="xo-score">' + xo.scores.O + " - " + xo.scores.X + "</div>" + playerChip(po, "O", !r && xo.turn === "O");
+    var status = r ? (r.w === "D" ? "تعادل" : xo.mode === "ai" ? (r.w === "X" ? "فزت!" : "فاز الكمبيوتر") : "فاز " + r.w + "!") :
+      (xo.mode === "ai" ? (xo.turn === "X" ? "دورك" : "الكمبيوتر يفكر...") : "دور " + xo.turn);
+    $("xo-status").textContent = status;
+    $("xo-status").className = "xo-status" + (r && r.w !== "D" && (xo.mode !== "ai" || r.w === "X") ? " won" : r && xo.mode === "ai" && r.w === "O" ? " lost" : "");
+    drawBoard(xo.board, r && r.line, !r && (xo.mode === "friend" || xo.turn === "X"));
+    $("xo-actions").innerHTML = r ? '<button type="button" class="btn" data-xo="again">جولة ثانية</button>' : '<button type="button" class="btn ghost" data-xo="again">إعادة</button>';
+  }
+  function localMove(i) {
+    if (xo.board[i] !== "." || xoWinner(xo.board)) return;
+    xo.board = xo.board.slice(0, i) + xo.turn + xo.board.slice(i + 1);
+    xo.turn = xo.turn === "X" ? "O" : "X";
+    var r = xoWinner(xo.board); if (r) xo.scores[r.w === "D" ? "D" : r.w]++;
+    renderLocal();
+    if (!r && xo.mode === "ai" && xo.turn === "O") {
+      setTimeout(function () {
+        if (xo.mode !== "ai" || xo.turn !== "O") return;
+        localMove(aiMove(xo.board, "O", xo.level));
+      }, 450);
+    }
+  }
+
+  // ----- online -----
+  function openXoHome() {
+    $("xo-search").value = "";
+    loadMembers().then(renderXoPeople).catch(function () {});
+    rpc("a9_xo_list", { p_token: getToken() }).then(function (d) {
+      $("xo-stats").innerHTML = '<div><b>' + d.wins + '</b><span>فوز</span></div><div><b>' + d.losses + '</b><span>خسارة</span></div><div><b>' + d.draws + "</b><span>تعادل</span></div>";
+      var games = d.games || [];
+      $("xo-games").innerHTML = games.length ? games.map(function (g) {
+        var op = g.opponent || { name: "" }, st, cls = "";
+        if (g.status === "pending") { st = g.incoming ? "يتحداك" : "بانتظار قبوله"; cls = g.incoming ? " hot" : ""; }
+        else if (g.status === "active") { st = g.turn === g.me ? "دورك" : "دوره"; cls = g.turn === g.me ? " hot" : ""; }
+        else if (g.status === "done") st = g.winner === "D" ? "تعادل" : g.winner === g.me ? "فزت" : "خسرت";
+        else st = g.status === "declined" ? "رفض التحدي" : "انلغى";
+        var btns = g.incoming ? '<button type="button" class="cbtn join" data-accept="' + g.id + '">قبول</button><button type="button" class="cbtn leave" data-decline="' + g.id + '">رفض</button>'
+                              : '<a class="cbtn join" href="#xo/' + g.id + '">' + (g.status === "active" ? "العب" : "فتح") + "</a>";
+        return '<div class="xo-game' + cls + '">' + avatar(op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
+      }).join("") : '<p class="note center-text" style="padding:16px">ماكو تحديات. اختار طالب من تحت وتحداه.</p>';
+      var hot = games.filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
+      $("nav-xo").hidden = !hot; $("nav-xo").textContent = hot;
+    }).catch(function () { $("xo-games").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب التحديات.</p>'; });
+  }
+  function renderXoPeople() {
+    var q = $("xo-search").value.trim();
+    var list = (state.members || []).filter(function (m) { return (!state.me || m.id !== state.me.id) && m.joined && (!q || m.name.indexOf(q) !== -1); });
+    $("xo-people").innerHTML = list.map(function (m) {
+      return '<div class="cmember xo-person">' + avatar(m) + '<span class="nm">' + esc(m.name) + '</span><button type="button" class="cbtn join" data-challenge="' + m.id + '">تحدي</button></div>';
+    }).join("") || '<p class="note center-text" style="padding:16px">ماكو اسم بهذا البحث</p>';
+  }
+  function openXoOnline(id) {
+    xo.mode = "online"; xo.game = null; $("xo-level").hidden = true;
+    $("xo-board").innerHTML = ""; $("xo-actions").innerHTML = ""; $("xo-status").textContent = "";
+    var load = function () {
+      return rpc("a9_xo_get", { p_token: getToken(), p_game: id }).then(function (g) {
+        if (location.hash !== "#xo/" + id) return;
+        var changed = !xo.game || xo.game.board !== g.board || xo.game.status !== g.status;
+        xo.game = g; if (changed) renderOnline();
+      });
+    };
+    loadMembers().catch(function () {});
+    load().catch(function () { $("xo-status").textContent = "ما گدرنا نفتح اللعبة."; });
+    stopXoPoll();
+    xo.poll = setInterval(function () { if (!document.hidden) load().catch(function () {}); }, 2000);
+  }
+  function renderOnline() {
+    var g = xo.game, me = g.me, op = g.opponent || { name: "" };
+    var mine = state.me ? { id: state.me.id, name: state.me.name.split(" ")[0], avatar: state.me.avatar } : { name: "أنت" };
+    var opp = { id: op.id, name: (op.name || "").split(" ")[0], avatar: op.avatar };
+    var px = me === "X" ? mine : opp, po = me === "X" ? opp : mine;
+    var live = g.status === "active";
+    $("xo-players").innerHTML = playerChip(px, "X", live && g.turn === "X") + '<div class="xo-score">VS</div>' + playerChip(po, "O", live && g.turn === "O");
+    var st = "", cls = "xo-status";
+    if (g.status === "pending") st = g.incoming ? opp.name + " يتحداك" : "بانتظار " + opp.name + " يقبل التحدي";
+    else if (live) st = g.turn === me ? "دورك" : "دور " + opp.name;
+    else if (g.status === "done") { st = g.winner === "D" ? "تعادل" : g.winner === me ? "فزت!" : "فاز " + opp.name; cls += g.winner === me ? " won" : g.winner === "D" ? "" : " lost"; }
+    else st = g.status === "declined" ? "انرفض التحدي" : "انلغت اللعبة";
+    $("xo-status").textContent = st; $("xo-status").className = cls;
+    var line = g.win_line ? g.win_line.split(",").map(function (n) { return Number(n) - 1; }) : null;
+    drawBoard(g.board, line, live && g.turn === me);
+    $("xo-actions").innerHTML = g.incoming && g.status === "pending"
+      ? '<button type="button" class="btn" data-accept="' + g.id + '">قبول التحدي</button><button type="button" class="btn outline-danger" data-decline="' + g.id + '">رفض</button>'
+      : g.status === "done" || g.status === "declined" ? '<button type="button" class="btn" data-xo="rematch">مباراة ثانية</button>' : "";
+  }
+  function onlineMove(i) {
+    var g = xo.game; if (!g || xo.busy || g.status !== "active" || g.turn !== g.me || g.board[i] !== ".") return;
+    xo.busy = true;
+    g.board = g.board.slice(0, i) + g.me + g.board.slice(i + 1); g.turn = g.me === "X" ? "O" : "X"; renderOnline(); // تظهر فوراً
+    rpc("a9_xo_move", { p_token: getToken(), p_game: g.id, p_cell: i + 1 }).then(function (res) {
+      xo.busy = false;
+      if (res && res.ok) { xo.game = res.game; renderOnline(); }
+      else rpc("a9_xo_get", { p_token: getToken(), p_game: g.id }).then(function (fresh) { xo.game = fresh; renderOnline(); });
+    }).catch(function () { xo.busy = false; alert("صار خطأ بالاتصال."); });
+  }
+  function xoRespond(id, accept) {
+    rpc("a9_xo_respond", { p_token: getToken(), p_game: id, p_accept: accept }).then(function () {
+      if (accept) location.hash = "xo/" + id; else openXoHome();
+    });
+  }
+  function onXoClick(e) {
+    var b = e.target.closest("button, a"); if (!b) return;
+    if (b.dataset.mode) { location.hash = "xoplay/" + b.dataset.mode; return; }
+    if (b.dataset.challenge) {
+      loading(true);
+      rpc("a9_xo_challenge", { p_token: getToken(), p_opponent: Number(b.dataset.challenge) }).then(function (r) {
+        loading(false); if (r && r.ok) location.hash = "xo/" + r.id; else alert("ما گدرنا نرسل التحدي.");
+      }).catch(function () { loading(false); });
+      return;
+    }
+    if (b.dataset.accept) return xoRespond(Number(b.dataset.accept), true);
+    if (b.dataset.decline) return xoRespond(Number(b.dataset.decline), false);
+    if (b.dataset.cell != null && !b.disabled) { var i = Number(b.dataset.cell); return xo.mode === "online" ? onlineMove(i) : localMove(i); }
+    if (b.dataset.level) { xo.level = b.dataset.level; openXoLocal("ai"); return; }
+    if (b.dataset.xo === "again") { xo.board = "........."; xo.turn = "X"; renderLocal(); return; }
+    if (b.dataset.xo === "rematch" && xo.game) {
+      rpc("a9_xo_rematch", { p_token: getToken(), p_game: xo.game.id }).then(function (r) { if (r && r.ok) location.hash = "xo/" + r.id; });
+    }
+  }
+
   // ---------- grades ----------
   var myGrades = null;
   function fmtGrade(g) {
@@ -1392,6 +1569,9 @@
   $("drawer-backdrop").addEventListener("click", closeDrawer);
   document.querySelectorAll("[data-nav]").forEach(function (a) { a.addEventListener("click", closeDrawer); });
   $("install-row").addEventListener("click", onInstall);
+  $("xo").addEventListener("click", onXoClick);
+  $("xoplay").addEventListener("click", onXoClick);
+  $("xo-search").addEventListener("input", renderXoPeople);
   $("subj-tabs").addEventListener("click", function (e) {
     var b = e.target.closest("[data-subj]"); if (!b) return;
     exam.subj = b.dataset.subj; exam.showAll = false; $("stage-search").value = "";
