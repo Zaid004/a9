@@ -58,6 +58,7 @@
         <a href="#" data-nav="home">الرئيسية</a>
         <button type="button" id="nav-members">المشاركين <span class="nav-end"><span id="members-count" class="count"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span></button>
         <a href="#inbox" data-nav="inbox">الرسائل <b class="badge" id="nav-unread" hidden></b></a>
+        <a href="#xo" data-nav="xo">لعبة XO <b class="badge" id="nav-xo" hidden></b></a>
         <a href="#me" data-nav="me">حسابي</a>
         <a href="#admin" data-nav="admin" class="admin-only" hidden>صفحة الإدارة</a>
         <a href="#log" data-nav="log" class="admin-only" hidden>سجل الأحداث</a>
@@ -169,6 +170,38 @@
     <input id="stage-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
     <div id="exam-stage" class="list"></div>
     <button type="button" class="btn ghost" id="stage-more" hidden>عرض الكل</button>
+  </main>
+
+  <!-- لعبة XO -->
+  <main id="xo" class="view page narrow" hidden>
+    <a href="#" class="back">رجوع</a>
+    <h1>لعبة XO</h1>
+    <div class="xo-stats" id="xo-stats"></div>
+
+    <div class="xo-modes">
+      <button type="button" class="xo-mode" data-mode="ai"><span class="xo-mode-ico">X</span><b>ضد الكمبيوتر</b><span>سهل أو صعب</span></button>
+      <button type="button" class="xo-mode" data-mode="friend"><span class="xo-mode-ico o">O</span><b>ويه صديق</b><span>على نفس الموبايل</span></button>
+    </div>
+
+    <h2 class="card-title section-h">تحدياتك</h2>
+    <div id="xo-games" class="list"></div>
+
+    <h2 class="card-title section-h">تحدّى طالب</h2>
+    <input id="xo-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+    <div id="xo-people" class="list"></div>
+  </main>
+
+  <!-- لوحة اللعب -->
+  <main id="xoplay" class="view page narrow" hidden>
+    <a href="#xo" class="back">رجوع</a>
+    <div class="xo-players" id="xo-players"></div>
+    <div class="xo-level" id="xo-level" hidden>
+      <button type="button" data-level="easy" class="chip">سهل</button>
+      <button type="button" data-level="hard" class="chip on">صعب</button>
+    </div>
+    <p class="xo-status" id="xo-status"></p>
+    <div class="xo-board" id="xo-board"></div>
+    <div class="xo-actions" id="xo-actions"></div>
   </main>
 
   <!-- روتة ENT -->
