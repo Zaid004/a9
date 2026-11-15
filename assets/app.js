@@ -1554,7 +1554,7 @@
       var mine = d.my_open
         ? '<div class="xo-game hot">' + avatar(state.me || { name: "" }) + '<div class="ainfo"><b>مباراتك مفتوحة</b><span class="note">بانتظار أي طالب يدخل يلعب ضدك</span></div>' +
           '<button type="button" class="cbtn leave" data-opencancel="' + d.my_open + '">إلغاء</button></div>'
-        : '<div class="xo-game"><div class="ainfo"><b>سوّي مباراة مفتوحة</b><span class="note">تطلع لكل الطلاب، وأول واحد يدخل يلعب ضدك</span></div>' +
+        : '<div class="xo-game"><div class="ainfo"><b>سوّي مباراة مفتوحة</b><span class="note">تطلع لكل الطلاب، وأول واحد يدخل يلعب ضدك. تنلغي إذا محد دخل خلال نص ساعة</span></div>' +
           '<button type="button" class="cbtn join" data-opencreate="1">سوّي</button></div>';
       var others = (d.open || []).map(function (o) {
         var c = o.creator;
@@ -1568,7 +1568,7 @@
         if (g.status === "pending") { st = g.incoming ? "يتحداك" : "بانتظار قبوله"; cls = g.incoming ? " hot" : ""; }
         else if (g.status === "active") { st = g.turn === g.me ? "دورك" : "دوره"; cls = g.turn === g.me ? " hot" : ""; }
         else if (g.status === "done") st = g.winner === "D" ? "تعادل" : g.winner === g.me ? "فزت" : "خسرت";
-        else st = g.status === "declined" ? "رفض التحدي" : "انلغى";
+        else st = g.status === "declined" ? "رفض التحدي" : "انلغت، ما صار لعب نص ساعة";
         var btns = g.incoming ? '<button type="button" class="cbtn join" data-accept="' + g.id + '">قبول</button><button type="button" class="cbtn leave" data-decline="' + g.id + '">رفض</button>'
                               : '<a class="cbtn join" href="#xo/' + g.id + '">' + (g.status === "active" ? "العب" : "فتح") + "</a>";
         return '<div class="xo-game' + cls + '">' + avatar(memberById(op.id) || op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
@@ -1611,7 +1611,7 @@
     if (g.status === "pending") st = g.incoming ? opp.name + " يتحداك" : "بانتظار " + opp.name + " يقبل التحدي";
     else if (live) st = g.turn === me ? "دورك" : "دور " + opp.name;
     else if (g.status === "done") { st = g.winner === "D" ? "تعادل" : g.winner === me ? "فزت!" : "فاز " + opp.name; cls += g.winner === me ? " won" : g.winner === "D" ? "" : " lost"; }
-    else st = g.status === "declined" ? "انرفض التحدي" : "انلغت اللعبة";
+    else st = g.status === "declined" ? "انرفض التحدي" : "انلغت اللعبة لأن ما صار لعب نص ساعة";
     $("xo-status").textContent = st; $("xo-status").className = cls;
     var line = g.win_line ? g.win_line.split(",").map(function (n) { return Number(n) - 1; }) : null;
     drawBoard(g.board, line, live && g.turn === me);
