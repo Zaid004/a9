@@ -693,13 +693,14 @@
     register: "تسجيل جديد", login: "تسجيل دخول", login_failed: "رقم سري غلط", locked: "انقفل الحساب",
     logout: "تسجيل خروج", avatar: "غيّر صورته", avatar_removed: "حذف صورته", pin_changed: "غيّر رقمه السري",
     pin_reset: "صفّر رقم سري", message: "رسالة",
+    xo_challenge: "تحدي XO", xo_accept: "قبل تحدي XO", xo_decline: "رفض تحدي XO", xo_win: "فاز بـ XO", xo_draw: "تعادل بـ XO",
     group_create: "سوّى مجموعة محادثة", group_add: "ضاف أعضاء لمجموعة", group_leave: "طلع من مجموعة", group_message: "رسالة بمجموعة",
     consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
     consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
     group_photo: "غيّر صورة المجموعة", group_photo_removed: "حذف صورة المجموعة"
   };
-  var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"]];
-  var LOG_GROUP = { message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
+  var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"], ["game", "الألعاب"]];
+  var LOG_GROUP = { xo_challenge: "game", xo_accept: "game", xo_decline: "game", xo_win: "game", xo_draw: "game", message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
                     avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
                     group_photo: "account", group_photo_removed: "account",
                     consult_join: "account", consult_leave: "account", consult_add: "account", consult_assign: "account",
@@ -713,6 +714,11 @@
     if (e.kind === "message") text = "<b>" + who + "</b> راسل <b>" + esc(e.target || "") + "</b>";
     else if (e.kind === "pin_reset") text = "<b>" + who + "</b> صفّر الرقم السري لـ <b>" + esc(e.target || "") + "</b>";
     else if (e.kind === "group_message") text = "<b>" + who + "</b> كتب بمجموعة";
+    else if (e.kind === "xo_challenge") text = "<b>" + who + "</b> تحدى <b>" + esc(e.target || "") + "</b> بلعبة XO";
+    else if (e.kind === "xo_accept") text = "<b>" + who + "</b> قبل تحدي <b>" + esc(e.target || "") + "</b> وبدت المباراة";
+    else if (e.kind === "xo_decline") text = "<b>" + who + "</b> رفض تحدي <b>" + esc(e.target || "") + "</b>";
+    else if (e.kind === "xo_win") text = "<b>" + who + "</b> فاز على <b>" + esc(e.target || "") + "</b> بلعبة XO";
+    else if (e.kind === "xo_draw") text = "<b>" + who + "</b> و<b>" + esc(e.target || "") + "</b> تعادلوا بلعبة XO";
     else if (e.kind === "group_create" || e.kind === "group_add" || e.kind === "group_leave") text = "<b>" + who + "</b> &middot; " + what + ' "' + esc(e.detail || "") + '"';
     else if (e.kind === "consult_add") text = "<b>" + who + "</b> ضاف <b>" + esc(e.target || "") + "</b> لـ" + esc(e.detail || "");
     else if (e.kind === "consult_assign") text = "<b>" + who + "</b> حط <b>" + esc(e.target || "") + "</b> بـ" + esc(e.detail || "");
