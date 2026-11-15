@@ -1,0 +1,8 @@
+-- منصة A9: تبليغات التيليغرام. مطبق على القاعدة (migration: a9_telegram_announcements).
+-- توكن البوت محفوظ بـ private.settings (key = tg_bot_token)، وما ينحط بالكود أبداً.
+-- الجدول: private.tg_announcements (day, body, auto, active, sent_at, req_id, status)
+-- الإرسال: pg_cron كل يوم 20:00 UTC (11 المسا ببغداد) يشغل private.tg_nightly()، ومحاولة ثانية 20:10.
+-- الإرسال نفسه عبر pg_net إلى Telegram sendMessage.
+-- دوال الممثل: a9_admin_tg_view, a9_admin_tg_sync, a9_admin_tg_edit, a9_admin_tg_enable,
+--              a9_admin_tg_test, a9_admin_tg_link, a9_admin_tg_req
+-- النصوص التلقائية تنكتب بالمتصفح من assets/gyn.js (A9_gynAnnouncements) وتنرفع بـ a9_admin_tg_sync.

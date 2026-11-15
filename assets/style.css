@@ -1019,3 +1019,23 @@ a.cbtn { text-decoration: none; }
 .xo-ico b.o { color: #fbcfe8; }
 .games-card .done-sub.hot { color: #fff; font-weight: 800; }
 .ev-game .ev-dot { background: #db2777; }
+
+/* ---------- تبليغات التيليغرام ---------- */
+.tg-admin { margin-top: 16px; }
+.tg-admin > .note { margin: 0 0 10px; }
+.tg-status { display: grid; gap: 8px; margin-bottom: 12px; }
+.tg-status .note { margin: 0; }
+.tg-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.tg-row span { color: var(--muted); font-size: .88rem; min-width: 70px; }
+.tg-row b { flex: 1; font-size: .92rem; overflow-wrap: anywhere; }
+.tg-list { display: grid; gap: 10px; }
+.tg-item { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--surface); }
+.tg-item.done { opacity: .7; }
+.tg-item .note { margin: 4px 0 0; font-size: .82rem; }
+.tg-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tg-head b { margin-inline-end: auto; }
+.tg-text { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .9rem; line-height: 1.7; margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 100%; box-sizing: border-box; }
+textarea.tg-text { resize: vertical; min-height: 160px; }
+.tg-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tg-btns .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }
+.tg-row .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }

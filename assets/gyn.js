@@ -152,6 +152,23 @@
     return { done: done, total: sessions.length, next: info };
   }
 
+  // نصوص تبليغ التيليغرام (تنرسل الليلة اللي قبل السشن)
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function isoOf(dt) { return dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate()); }
+  function announcements() {
+    var from = isoOf(today());
+    return DAYS.filter(function (x) { return x.d >= from && (x.p || x.special); }).map(function (x) {
+      var dt = parse(x.d), lines = ["تبليغ سشن باچر - Group 3", "", WEEKDAYS[dt.getDay()] + " " + fmt(dt)];
+      if (x.special) { lines.push(x.special); if (x.note) lines.push(x.note); lines.push("الساعة " + TIME); }
+      else {
+        var pl = P[x.p];
+        lines.push(pl.name, x.where || pl.note, "الساعة " + TIME);
+        if (x.p === "lab" && x.t) lines.push("الموضوع: " + x.t);
+      }
+      return { d: x.d, text: lines.join("\n") };
+    });
+  }
+  window.A9_gynAnnouncements = announcements;
   window.A9_renderGyn = render;
   window.A9_gynSummary = summary;
 })();

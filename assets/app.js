@@ -726,14 +726,15 @@
     group_create: "سوّى مجموعة محادثة", group_add: "ضاف أعضاء لمجموعة", group_leave: "طلع من مجموعة", group_message: "رسالة بمجموعة",
     consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
     consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
-    group_photo: "غيّر صورة المجموعة", group_photo_removed: "حذف صورة المجموعة"
+    group_photo: "غيّر صورة المجموعة", group_photo_removed: "حذف صورة المجموعة",
+    tg_edit: "عدّل تبليغ التيليغرام", tg_link: "ربط مجموعة التيليغرام"
   };
   var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"], ["game", "الألعاب"]];
   var LOG_GROUP = { xo_challenge: "game", xo_accept: "game", xo_decline: "game", xo_win: "game", xo_draw: "game", message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
                     avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
                     group_photo: "account", group_photo_removed: "account",
                     consult_join: "account", consult_leave: "account", consult_add: "account", consult_assign: "account",
-                    consult_lock: "account", consult_unlock: "account" };
+                    consult_lock: "account", consult_unlock: "account", tg_edit: "account", tg_link: "account" };
   var logState = { rows: [], filter: "all", oldest: null };
 
   function logLine(e) {
@@ -898,7 +899,7 @@
     if (h === "rot-gyn") { show("rot-gyn"); openRotGyn(); return; }
     if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
-    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); }
+    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); openTgAdmin(); }
     else if (h === "me") { show("me"); renderMe(); renderNotifRow(); $("install-row").hidden = isStandalone(); }
     else { show("home"); renderHome(); }
   }
@@ -1009,6 +1010,107 @@
       gpGet(id).then(function (src) { var img = $("gp-grid").querySelector('.gp-thumb[data-id="' + id + '"] img'); if (img && src) img.src = src; }).catch(function () {});
     });
   }
+  // ---------- Telegram announcements (admin) ----------
+  var tg = { view: null, editing: null };
+  var TG_ERR = { not_admin: "هاي للممثل بس.", no_admin_chat: "افتح البوت بالخاص ودوس Start أول.", not_found: "ما لگينا التبليغ.", bad_text: "النص فارغ أو طويل هواية." };
+  function tgMsg(t) { var el = $("tg-msg"); el.hidden = !t; el.textContent = t || ""; }
+  function tgDayLabel(iso) {
+    var a = iso.split("-"), dt = new Date(+a[0], +a[1] - 1, +a[2]);
+    return dt.toLocaleDateString("ar-IQ-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
+  }
+  function tgAuto(day) {
+    var list = window.A9_gynAnnouncements ? window.A9_gynAnnouncements() : [];
+    var x = list.filter(function (i) { return i.d === day; })[0];
+    return x ? x.text : null;
+  }
+  function openTgAdmin() {
+    tgMsg(""); tg.editing = null;
+    var items = window.A9_gynAnnouncements ? window.A9_gynAnnouncements() : [];
+    rpc("a9_admin_tg_sync", { p_token: getToken(), p_items: items }).catch(function () {})
+      .then(loadTg);
+  }
+  function loadTg() {
+    return rpc("a9_admin_tg_view", { p_token: getToken() }).then(function (v) { tg.view = v; renderTg(); })
+      .catch(function () { tgMsg("ما گدرنا نجيب التبليغات."); });
+  }
+  function renderTg() {
+    var v = tg.view; if (!v) return;
+    $("tg-status").innerHTML =
+      '<div class="tg-row"><span>المجموعة</span><b>' + (v.group_linked ? esc(v.group_title || "مربوطة") : "بعدها ما مربوطة") + "</b>" +
+        '<button type="button" class="cbtn join" data-tg="link">' + (v.group_linked ? "إعادة الربط" : "ربط المجموعة") + "</button></div>" +
+      '<div class="tg-row"><span>التبليغات</span><b>' + (v.enabled ? "شغالة" : "موقفة") + "</b>" +
+        '<button type="button" class="cbtn ' + (v.enabled ? "leave" : "join") + '" data-tg="toggle">' + (v.enabled ? "إيقاف" : "تشغيل") + "</button></div>" +
+      (v.group_linked ? "" : '<p class="note">ضيف البوت @a9_group_bot للمجموعة وسويه أدمن، واكتب بالمجموعة /start@a9_group_bot، وبعدين دوس "ربط المجموعة".</p>');
+    var items = v.items || [];
+    $("tg-list").innerHTML = items.length ? items.map(function (it) {
+      var past = it.day <= v.today && !it.sent_at;
+      var st = it.status === "ok" ? '<span class="tag preg">انرسل</span>'
+        : it.status === "pending" ? '<span class="tag special">يندز هسه</span>'
+        : it.status ? '<span class="tag cons" title="' + esc(it.status) + '">ما انرسل</span>'
+        : past ? '<span class="tag">فات</span>' : '<span class="tag lab">جاي</span>';
+      var head = '<div class="tg-head"><b>' + esc(tgDayLabel(it.day)) + "</b>" + (it.auto ? "" : '<span class="tag gold">معدّل</span>') + st + "</div>";
+      var note = '<p class="note">ينرسل ليلة ' + esc(tgDayLabel(prevDay(it.day))) + " الساعة 11 المسا</p>";
+      if (tg.editing === it.day) {
+        return '<div class="tg-item editing">' + head +
+          '<textarea id="tg-edit" class="tg-text" rows="8" maxlength="3500">' + esc(it.body) + "</textarea>" +
+          '<div class="tg-btns"><button type="button" class="cbtn join" data-tg="save" data-day="' + it.day + '">حفظ</button>' +
+          '<button type="button" class="cbtn" data-tg="cancel">إلغاء</button></div></div>';
+      }
+      var done = !!it.sent_at || it.day <= v.today;
+      return '<div class="tg-item' + (done ? " done" : "") + '">' + head + (done ? "" : note) +
+        '<pre class="tg-text">' + esc(it.body) + "</pre>" +
+        (it.status && it.status !== "ok" && it.status !== "pending" ? '<p class="note">السبب: ' + esc(it.status) + "</p>" : "") +
+        (done ? "" : '<div class="tg-btns"><button type="button" class="cbtn join" data-tg="edit" data-day="' + it.day + '">تعديل</button>' +
+          '<button type="button" class="cbtn" data-tg="test" data-day="' + it.day + '">تجربة بالخاص</button>' +
+          (it.auto ? "" : '<button type="button" class="cbtn leave" data-tg="reset" data-day="' + it.day + '">رجع للنص التلقائي</button>') + "</div>") +
+        "</div>";
+    }).join("") : '<p class="note center-text">ماكو تبليغات جاية.</p>';
+  }
+  function prevDay(iso) { var a = iso.split("-"), dt = new Date(+a[0], +a[1] - 1, +a[2] - 1); return dt.getFullYear() + "-" + ("0" + (dt.getMonth() + 1)).slice(-2) + "-" + ("0" + dt.getDate()).slice(-2); }
+  function tgWait(req, link, tries) {
+    return new Promise(function (res) { setTimeout(res, 1500); }).then(function () {
+      return rpc("a9_admin_tg_req", { p_token: getToken(), p_req: req, p_link: link });
+    }).then(function (r) {
+      if (r && r.done) return r;
+      if (tries <= 1) return { done: true, status: "تيليغرام ما جاوب، جرب بعد شوية." };
+      return tgWait(req, link, tries - 1);
+    });
+  }
+  function onTgClick(e) {
+    var b = e.target.closest("[data-tg]"); if (!b) return;
+    var act = b.dataset.tg, day = b.dataset.day, v = tg.view;
+    var it = v && (v.items || []).filter(function (x) { return x.day === day; })[0];
+    if (act === "edit") { tg.editing = day; renderTg(); var ta = $("tg-edit"); if (ta) ta.focus(); return; }
+    if (act === "cancel") { tg.editing = null; renderTg(); return; }
+    var done = function (r) { loading(false); if (r && r.ok === false) tgMsg(TG_ERR[r.error] || "صار خطأ، جرب مرة ثانية."); return r; };
+    var fail = function () { loading(false); tgMsg("صار خطأ بالاتصال، جرب مرة ثانية."); };
+    tgMsg(""); loading(true);
+    if (act === "save" || act === "reset") {
+      var body = act === "save" ? $("tg-edit").value : tgAuto(day);
+      if (act === "reset" && !body) { loading(false); tgMsg("هذا اليوم ما موجود بالجدول."); return; }
+      rpc("a9_admin_tg_edit", { p_token: getToken(), p_day: day, p_body: body, p_auto: act === "reset" || body === tgAuto(day) }).then(done)
+        .then(function (r) { if (r && r.ok) { tg.editing = null; tgMsg(act === "save" ? "انحفظ التعديل" : "رجع النص التلقائي"); return loadTg(); } }).catch(fail);
+    } else if (act === "toggle") {
+      rpc("a9_admin_tg_enable", { p_token: getToken(), p_on: !v.enabled }).then(done).then(loadTg).catch(fail);
+    } else if (act === "test") {
+      rpc("a9_admin_tg_test", { p_token: getToken(), p_day: day }).then(done).then(function (r) {
+        if (!r || !r.ok) return;
+        loading(true);
+        return tgWait(r.req, false, 8).then(function (w) { loading(false); tgMsg(w.status === "ok" ? "وصلك التبليغ بالخاص بالتيليغرام" : "ما وصل: " + w.status); });
+      }).catch(fail);
+    } else if (act === "link") {
+      rpc("a9_admin_tg_link", { p_token: getToken() }).then(done).then(function (r) {
+        if (!r || !r.ok) return;
+        loading(true);
+        return tgWait(r.req, true, 8).then(function (w) {
+          loading(false);
+          if (w.status === "ok") { tgMsg("انربطت المجموعة: " + (w.title || "")); return loadTg(); }
+          tgMsg(w.status === "no_group" ? "ما لگينا المجموعة. تأكد إن البوت مضاف وأدمن، واكتب بالمجموعة /start@a9_group_bot وجرب مرة ثانية." : "ما انربطت: " + w.status);
+        });
+      }).catch(fail);
+    } else loading(false);
+  }
+
   function openGpAdmin() { gpMsg(""); loadGallery().then(renderGpAdmin).catch(function () { gpMsg("ما گدرنا نجيب الصور."); }); }
 
   function onGroupPhotos(e) {
@@ -1646,6 +1748,8 @@
   $("consult").addEventListener("change", onConsultMove);
   $("friend-search").addEventListener("input", function () { if (consult) renderFriends(); });
   $("gp-input").addEventListener("change", onGroupPhotos);
+  $("tg-list").addEventListener("click", onTgClick);
+  $("tg-status").addEventListener("click", onTgClick);
   $("gp-grid").addEventListener("click", function (e) { var b = e.target.closest("[data-del]"); if (b) removeGroupPhoto(Number(b.dataset.del)); });
   bindGalleryHold();
   $("person-chat").addEventListener("click", function () {
