@@ -1039,3 +1039,4 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 .tg-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .tg-btns .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }
 .tg-row .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }
+#xo-open .ainfo, #xo-games .ainfo { flex: 1; min-width: 0; }
