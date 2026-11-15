@@ -158,7 +158,7 @@
   function announcements() {
     var from = isoOf(today());
     return DAYS.filter(function (x) { return x.d >= from && (x.p || x.special); }).map(function (x) {
-      var dt = parse(x.d), lines = ["تبليغ سشن باچر - Group 3", "", WEEKDAYS[dt.getDay()] + " " + fmt(dt)];
+      var dt = parse(x.d), lines = ["تبليغ سشن باچر", "", WEEKDAYS[dt.getDay()] + " " + fmt(dt)];
       if (x.special) { lines.push(x.special); if (x.note) lines.push(x.note); lines.push("الساعة " + TIME); }
       else {
         var pl = P[x.p];
