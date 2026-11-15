@@ -50,7 +50,17 @@
   var MONTHS = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"];
 
   function parse(s) { var a = s.split("-"); return new Date(+a[0], +a[1] - 1, +a[2]); }
-  function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  // الوقت حسب بغداد، حتى ما يتأثر بساعة الموبايل لو منطقته غلط
+  function baghdadNow() {
+    var parts = {};
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
+    return { y: +parts.year, m: +parts.month, d: +parts.day, h: +parts.hour };
+  }
+  function today() { var b = baghdadNow(); return new Date(b.y, b.m - 1, b.d); }
+  // بعد الساعة 1 ظهراً سشن اليوم ينحسب خالص، ويطلع سشن اليوم الجاي
+  var CUTOFF_HOUR = 13;
+  function cutoff() { var b = baghdadNow(), d = today(); if (b.h >= CUTOFF_HOUR) d.setDate(d.getDate() + 1); return d; }
   function fmt(dt) { return dt.getDate() + " " + MONTHS[dt.getMonth()]; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function lastDay(x) { return parse(x.end || x.d); }
@@ -70,7 +80,7 @@
   }
 
   function render() {
-    var t = today();
+    var t = cutoff(), now = today();
     var nextIdx = -1;
     for (var i = 0; i < DAYS.length; i++) { if (lastDay(DAYS[i]) >= t) { nextIdx = i; break; } }
 
@@ -80,10 +90,10 @@
     } else {
       var x = DAYS[nextIdx];
       var start = parse(x.d);
-      var diff = Math.round((start - t) / 86400000);
-      var when = start <= t ? "اليوم" : diff === 1 ? "باچر" : "بعد " + diff + " أيام";
+      var diff = Math.round((start - now) / 86400000);
+      var when = start <= now ? "اليوم" : diff === 1 ? "باچر" : "بعد " + diff + " أيام";
       next.innerHTML =
-        '<div class="label"><span class="pulse"></span>' + (start <= t ? "سشن اليوم" : "السشن الجاي &middot; " + when) + "</div>" +
+        '<div class="label"><span class="pulse"></span>' + (start <= now ? "سشن اليوم" : "السشن الجاي &middot; " + when) + "</div>" +
         '<div class="next-date">' + ICON.cal + dateHtml(x) + "</div>" +
         (x.exam ? "" : '<div class="next-time">' + ICON.clock + TIME + "</div>") +
         '<div class="next-place">' + ICON.pin + placeHtml(x) + "</div>" +
@@ -123,7 +133,7 @@
 
   // ملخص للصفحة الرئيسية
   function summary() {
-    var t = today();
+    var t = cutoff(), now = today();
     var sessions = DAYS.filter(function (x) { return !x.exam; });
     var done = sessions.filter(function (x) { return lastDay(x) < t; }).length;
     var nx = null;
@@ -131,9 +141,9 @@
     var info = null;
     if (nx) {
       var start = parse(nx.d);
-      var diff = Math.round((start - t) / 86400000);
+      var diff = Math.round((start - now) / 86400000);
       info = {
-        when: start <= t ? "اليوم" : diff === 1 ? "باچر" : WEEKDAYS[start.getDay()] + " " + fmt(start),
+        when: start <= now ? "اليوم" : diff === 1 ? "باچر" : WEEKDAYS[start.getDay()] + " " + fmt(start),
         place: nx.exam ? "أسبوع الامتحانات" : nx.special ? nx.special : P[nx.p].name + (nx.where ? " · " + nx.where : ""),
         cls: nx.exam ? "exam" : nx.special ? "special" : P[nx.p].cls,
         time: nx.exam ? "" : TIME
