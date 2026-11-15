@@ -1034,7 +1034,7 @@ a.cbtn { text-decoration: none; }
 .tg-item .note { margin: 4px 0 0; font-size: .82rem; }
 .tg-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .tg-head b { margin-inline-end: auto; }
-.tg-text { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .9rem; line-height: 1.7; margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 100%; box-sizing: border-box; }
+.tg-text { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-weight: 800; font-size: .9rem; line-height: 1.7; margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 100%; box-sizing: border-box; }
 textarea.tg-text { resize: vertical; min-height: 160px; }
 .tg-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .tg-btns .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }
