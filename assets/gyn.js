@@ -165,6 +165,7 @@
         lines.push(pl.name, x.where || pl.note, "الساعة " + TIME);
         if (x.p === "lab" && x.t) lines.push("الموضوع: " + x.t);
       }
+      lines.push("", "https://zaid004.github.io/a9/");
       return { d: x.d, text: lines.join("\n") };
     });
   }
