@@ -722,7 +722,7 @@
     register: "تسجيل جديد", login: "تسجيل دخول", login_failed: "رقم سري غلط", locked: "انقفل الحساب",
     logout: "تسجيل خروج", avatar: "غيّر صورته", avatar_removed: "حذف صورته", pin_changed: "غيّر رقمه السري",
     pin_reset: "صفّر رقم سري", message: "رسالة",
-    xo_challenge: "تحدي XO", xo_accept: "قبل تحدي XO", xo_decline: "رفض تحدي XO", xo_win: "فاز بـ XO", xo_draw: "تعادل بـ XO",
+    xo_challenge: "تحدي XO", xo_accept: "قبل تحدي XO", xo_decline: "رفض تحدي XO", xo_win: "فاز بـ XO", xo_draw: "تعادل بـ XO", xo_open: "سوّى مباراة XO مفتوحة", xo_join: "دخل مباراة XO مفتوحة",
     group_create: "سوّى مجموعة محادثة", group_add: "ضاف أعضاء لمجموعة", group_leave: "طلع من مجموعة", group_message: "رسالة بمجموعة",
     consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
     consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
@@ -730,7 +730,7 @@
     tg_edit: "عدّل تبليغ التيليغرام", tg_link: "ربط مجموعة التيليغرام"
   };
   var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"], ["game", "الألعاب"]];
-  var LOG_GROUP = { xo_challenge: "game", xo_accept: "game", xo_decline: "game", xo_win: "game", xo_draw: "game", message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
+  var LOG_GROUP = { xo_challenge: "game", xo_accept: "game", xo_decline: "game", xo_win: "game", xo_draw: "game", xo_open: "game", xo_join: "game", message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
                     avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
                     group_photo: "account", group_photo_removed: "account",
                     consult_join: "account", consult_leave: "account", consult_add: "account", consult_assign: "account",
@@ -1527,11 +1527,41 @@
   }
 
   // ----- online -----
+  var xoHome = { timer: null, myOpen: null };
   function openXoHome() {
     $("xo-search").value = "";
     loadMembers().then(renderXoPeople).catch(function () {});
-    loadMembers().catch(function () {}).then(function () { return rpc("a9_xo_list", { p_token: getToken() }); }).then(function (d) {
+    xoHome.myOpen = null;
+    refreshXoHome(true);
+    clearInterval(xoHome.timer);
+    // تحديث كل 8 ثواني وإنت بصفحة اللعبة: حتى تبين المباريات المفتوحة الجديدة، وتختفي المنتهية
+    xoHome.timer = setInterval(function () {
+      if (location.hash !== "#xo") { clearInterval(xoHome.timer); return; }
+      if (!document.hidden) refreshXoHome(false);
+    }, 8000);
+  }
+  function refreshXoHome(first) {
+    return loadMembers().catch(function () {}).then(function () { return rpc("a9_xo_list", { p_token: getToken() }); }).then(function (d) {
+      if (location.hash !== "#xo") return;
+      // صاحب المباراة المفتوحة: إذا أحد دخل، ننقله للعبة مباشرة
+      if (!first && xoHome.myOpen && !d.my_open) {
+        var g0 = (d.games || []).filter(function (g) { return g.status === "active"; })[0];
+        xoHome.myOpen = null;
+        if (g0) { location.hash = "xo/" + g0.id; return; }
+      }
+      xoHome.myOpen = d.my_open || null;
       $("xo-stats").innerHTML = '<div><b>' + d.wins + '</b><span>فوز</span></div><div><b>' + d.losses + '</b><span>خسارة</span></div><div><b>' + d.draws + "</b><span>تعادل</span></div>";
+      var mine = d.my_open
+        ? '<div class="xo-game hot">' + avatar(state.me || { name: "" }) + '<div class="ainfo"><b>مباراتك مفتوحة</b><span class="note">بانتظار أي طالب يدخل يلعب ضدك</span></div>' +
+          '<button type="button" class="cbtn leave" data-opencancel="' + d.my_open + '">إلغاء</button></div>'
+        : '<div class="xo-game"><div class="ainfo"><b>سوّي مباراة مفتوحة</b><span class="note">تطلع لكل الطلاب، وأول واحد يدخل يلعب ضدك</span></div>' +
+          '<button type="button" class="cbtn join" data-opencreate="1">سوّي</button></div>';
+      var others = (d.open || []).map(function (o) {
+        var c = o.creator;
+        return '<div class="xo-game">' + avatar(memberById(c.id) || c) + '<div class="ainfo"><b>' + esc(c.name) + '</b><span class="note">يدور خصم</span></div>' +
+          '<button type="button" class="cbtn join" data-openjoin="' + o.id + '">العب ضده</button></div>';
+      }).join("");
+      $("xo-open").innerHTML = mine + others;
       var games = d.games || [];
       $("xo-games").innerHTML = games.length ? games.map(function (g) {
         var op = g.opponent || { name: "" }, st, cls = "";
@@ -1544,9 +1574,8 @@
         return '<div class="xo-game' + cls + '">' + avatar(memberById(op.id) || op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
       }).join("") : '<p class="note center-text" style="padding:16px">ماكو تحديات. اختار طالب من تحت وتحداه.</p>';
       var hot = games.filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
-      
       $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "لعبة XO · تحدى زملاءك";
-    }).catch(function () { $("xo-games").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب التحديات.</p>'; });
+    }).catch(function () { if (first) $("xo-games").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب التحديات.</p>'; });
   }
   function renderXoPeople() {
     var q = $("xo-search").value.trim();
@@ -1612,6 +1641,25 @@
       loading(true);
       rpc("a9_xo_challenge", { p_token: getToken(), p_opponent: Number(b.dataset.challenge) }).then(function (r) {
         loading(false); if (r && r.ok) location.hash = "xo/" + r.id; else alert("ما گدرنا نرسل التحدي.");
+      }).catch(function () { loading(false); });
+      return;
+    }
+    if (b.dataset.opencreate) {
+      loading(true);
+      rpc("a9_xo_open_create", { p_token: getToken() }).then(function () { loading(false); return refreshXoHome(true); }).catch(function () { loading(false); });
+      return;
+    }
+    if (b.dataset.opencancel) {
+      xoHome.myOpen = null;
+      rpc("a9_xo_open_cancel", { p_token: getToken(), p_open: Number(b.dataset.opencancel) }).then(function () { return refreshXoHome(true); });
+      return;
+    }
+    if (b.dataset.openjoin) {
+      loading(true);
+      rpc("a9_xo_open_join", { p_token: getToken(), p_open: Number(b.dataset.openjoin) }).then(function (r) {
+        loading(false);
+        if (r && r.ok) location.hash = "xo/" + r.id;
+        else { alert("سبقك أحد، أو صاحبها لغاها."); refreshXoHome(true); }
       }).catch(function () { loading(false); });
       return;
     }
