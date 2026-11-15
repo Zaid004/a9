@@ -75,11 +75,14 @@
       state.reps = {};
       (rows || []).forEach(function (r) { state.reps[r.id] = true; });
     }).catch(function () {});
-    var pics = rpc("a9_login_avatars").catch(function () { return []; });
-    return Promise.all([rpc("a9_list_students"), reps, pics]).then(function (res) {
+    var vers = rpc("a9_login_avatar_versions").catch(function () { return []; });
+    return Promise.all([rpc("a9_list_students"), reps, vers]).then(function (res) {
       var map = {};
-      (res[2] || []).forEach(function (r) { map[r.id] = r.avatar; });
-      state.students = (res[0] || []).map(function (s) { s.avatar = map[s.id] || null; return s; });
+      (res[2] || []).forEach(function (r) { map[r.id] = r.avatar_v; });
+      var list = (res[0] || []).map(function (s) { s.avatar_v = map[s.id] || null; return s; });
+      return fillAvatars(list, function (ids) { return rpc("a9_login_avatars_by_id", { p_ids: ids }); });
+    }).then(function (list) {
+      state.students = list;
       renderNames();
     }).catch(function () {
       $("names").innerHTML = '<p class="error">ما گدرنا نجيب الأسماء، تأكد من الإنترنت وحدّث الصفحة.</p>';
@@ -269,7 +272,7 @@
     loading(true);
     return rpc("a9_set_avatar", { p_token: getToken(), p_avatar: data }).then(function (res) {
       loading(false);
-      if (res && res.ok) { state.me.avatar = data; state.members = null; renderMe(); paintAvatar($("me-btn"), state.me); photoMsg(data ? "انحفظت الصورة" : "انحذفت الصورة"); }
+      if (res && res.ok) { state.me.avatar = data; state.members = null; if (data && res.v) avPut(state.me.id, res.v, data); else avDrop(state.me.id); renderMe(); paintAvatar($("me-btn"), state.me); photoMsg(data ? "انحفظت الصورة" : "انحذفت الصورة"); }
       else photoMsg("ما گدرنا نحفظ الصورة، جرب صورة ثانية.");
     }).catch(function () { loading(false); photoMsg("صار خطأ بالاتصال."); });
   }
@@ -299,9 +302,35 @@
   }
 
   // ---------- participants ----------
+  // كاش الصور بالموبايل: الصورة تنزل مرة وحدة، وبعدها بس رقم النسخة
+  function avGet(id) { try { var o = JSON.parse(localStorage.getItem("a9:av:" + id) || "null"); return o && o.v ? o : null; } catch (e) { return null; } }
+  function avPut(id, v, data) { try { localStorage.setItem("a9:av:" + id, JSON.stringify({ v: v, data: data })); } catch (e) {} }
+  function avDrop(id) { try { localStorage.removeItem("a9:av:" + id); } catch (e) {} }
+  // rows فيها id و avatar_v. fetcher ياخذ قائمة ids ويرجع {id, avatar, avatar_v}
+  function fillAvatars(rows, fetcher) {
+    var need = [];
+    rows.forEach(function (r) {
+      if (!r.avatar_v) { r.avatar = null; avDrop(r.id); return; }
+      var c = avGet(r.id);
+      if (c && String(c.v) === String(r.avatar_v)) r.avatar = c.data;
+      else { r.avatar = c ? c.data : null; need.push(r.id); }
+    });
+    if (!need.length) return Promise.resolve(rows);
+    return fetcher(need).then(function (pics) {
+      var map = {};
+      (pics || []).forEach(function (p) { map[p.id] = p; avPut(p.id, p.avatar_v, p.avatar); });
+      rows.forEach(function (r) { if (map[r.id]) r.avatar = map[r.id].avatar; });
+      return rows;
+    }).catch(function () { return rows; });
+  }
+
+  var membersAt = 0;
   function loadMembers(force) {
-    if (state.members && !force) return Promise.resolve(state.members);
-    return rpc("a9_members", { p_token: getToken() }).then(function (rows) { state.members = rows || []; return state.members; });
+    // force يجيب القائمة من جديد بس إذا صار عليها أكثر من دقيقة
+    if (state.members && (!force || Date.now() - membersAt < 60000)) return Promise.resolve(state.members);
+    return rpc("a9_members_lite", { p_token: getToken() }).then(function (rows) {
+      return fillAvatars(rows || [], function (ids) { return rpc("a9_avatars", { p_token: getToken(), p_ids: ids }); });
+    }).then(function (rows) { state.members = rows; membersAt = Date.now(); return rows; });
   }
 
   function renderMembers() {
@@ -447,7 +476,7 @@
 
   function openInbox() {
     loading(true);
-    var dms = loadPresence().then(function () { return rpc("a9_conversations", { p_token: getToken() }); });
+    var dms = Promise.all([loadPresence(), loadMembers().catch(function () {})]).then(function () { return rpc("a9_conversations", { p_token: getToken() }); });
     var groups = rpc("a9_group_list", { p_token: getToken() }).catch(function () { return []; });
     Promise.all([dms, groups]).then(function (res) {
       loading(false);
@@ -464,7 +493,7 @@
             '<div class="conv-last">' + last + "</div></div>" +
             (c.unread ? '<b class="badge">' + c.unread + "</b>" : "") + "</a>";
         }
-        var who = { id: c.other, name: c.name, avatar: c.avatar };
+        var who = { id: c.other, name: c.name, avatar: c.avatar || (memberById(c.other) || {}).avatar };
         return '<a class="conv' + (c.unread ? " unread" : "") + '" href="#chat/' + c.other + '">' +
           avatar(who) +
           '<div class="conv-main"><div class="conv-top"><b>' + esc(c.name) + "</b>" +
@@ -1039,7 +1068,11 @@
 
   var clockSkew = 0, openTimer = null;
   function consultLoad() {
-    return rpc("a9_consult_view", { p_token: getToken() }).then(function (v) {
+    return Promise.all([rpc("a9_consult_view", { p_token: getToken() }), loadMembers().catch(function () { return []; })]).then(function (res) {
+      var v = res[0];
+      var fill = function (x) { var m = memberById(x.id); if (!x.avatar && m) x.avatar = m.avatar; };
+      (v.groups || []).forEach(function (g) { (g.members || []).forEach(fill); });
+      (v.unassigned || []).forEach(fill);
       consult = v;
       if (v.now) clockSkew = new Date(v.now).getTime() - Date.now(); // نعتمد وقت السيرفر مو ساعة الموبايل
       renderConsult();
@@ -1395,7 +1428,7 @@
   function openXoHome() {
     $("xo-search").value = "";
     loadMembers().then(renderXoPeople).catch(function () {});
-    rpc("a9_xo_list", { p_token: getToken() }).then(function (d) {
+    loadMembers().catch(function () {}).then(function () { return rpc("a9_xo_list", { p_token: getToken() }); }).then(function (d) {
       $("xo-stats").innerHTML = '<div><b>' + d.wins + '</b><span>فوز</span></div><div><b>' + d.losses + '</b><span>خسارة</span></div><div><b>' + d.draws + "</b><span>تعادل</span></div>";
       var games = d.games || [];
       $("xo-games").innerHTML = games.length ? games.map(function (g) {
@@ -1406,7 +1439,7 @@
         else st = g.status === "declined" ? "رفض التحدي" : "انلغى";
         var btns = g.incoming ? '<button type="button" class="cbtn join" data-accept="' + g.id + '">قبول</button><button type="button" class="cbtn leave" data-decline="' + g.id + '">رفض</button>'
                               : '<a class="cbtn join" href="#xo/' + g.id + '">' + (g.status === "active" ? "العب" : "فتح") + "</a>";
-        return '<div class="xo-game' + cls + '">' + avatar(op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
+        return '<div class="xo-game' + cls + '">' + avatar(memberById(op.id) || op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
       }).join("") : '<p class="note center-text" style="padding:16px">ماكو تحديات. اختار طالب من تحت وتحداه.</p>';
       var hot = games.filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
       
@@ -1430,7 +1463,7 @@
         xo.game = g; if (changed) renderOnline();
       });
     };
-    loadMembers().catch(function () {});
+    loadMembers().then(function () { if (xo.game && location.hash === "#xo/" + id) renderOnline(); }).catch(function () {});
     load().catch(function () { $("xo-status").textContent = "ما گدرنا نفتح اللعبة."; });
     stopXoPoll();
     xo.poll = setInterval(function () { if (!document.hidden) load().catch(function () {}); }, 2000);
@@ -1438,7 +1471,8 @@
   function renderOnline() {
     var g = xo.game, me = g.me, op = g.opponent || { name: "" };
     var mine = state.me ? { id: state.me.id, name: state.me.name.split(" ")[0], avatar: state.me.avatar } : { name: "أنت" };
-    var opp = { id: op.id, name: (op.name || "").split(" ")[0], avatar: op.avatar };
+    var opm = memberById(op.id) || {};
+    var opp = { id: op.id, name: (op.name || "").split(" ")[0], avatar: op.avatar || opm.avatar || null };
     var px = me === "X" ? mine : opp, po = me === "X" ? opp : mine;
     var live = g.status === "active";
     $("xo-players").innerHTML = playerChip(px, "X", live && g.turn === "X") + '<div class="xo-score">VS</div>' + playerChip(po, "O", live && g.turn === "O");
