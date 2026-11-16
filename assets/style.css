@@ -1057,3 +1057,10 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 }
 @keyframes fab-in { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .home { padding-bottom: 90px; }
+
+/* ترتيب صور المجموعة */
+.gp-num { position: absolute; top: 4px; right: 4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: rgba(15,23,42,.75); color: #fff; font-size: .72rem; font-weight: 800; display: grid; place-items: center; box-sizing: border-box; }
+.gp-move { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; padding: 4px; background: linear-gradient(180deg, transparent, rgba(15,23,42,.6)); }
+.gp-move button { width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(255,255,255,.92); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.gp-move button:disabled { opacity: .3; cursor: default; }
+.gp-move svg { width: 16px; height: 16px; stroke: #0f172a; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }

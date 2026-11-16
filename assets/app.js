@@ -1008,13 +1008,32 @@
   function gpMsg(m) { $("gp-msg").textContent = m; $("gp-msg").hidden = !m; }
   function renderGpAdmin() {
     var ids = gallery.ids;
-    $("gp-grid").innerHTML = ids.length ? ids.map(function (id) {
-      return '<div class="gp-thumb" data-id="' + id + '"><img alt="" /><button type="button" class="gp-del" data-del="' + id + '" aria-label="حذف">' +
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+    $("gp-grid").innerHTML = ids.length ? ids.map(function (id, i) {
+      // الأسهم تغير الترتيب: السهم لليمين يقدمها، ولليسار يأخرها
+      return '<div class="gp-thumb" data-id="' + id + '"><img alt="" /><span class="gp-num">' + (i + 1) + '</span><button type="button" class="gp-del" data-del="' + id + '" aria-label="حذف">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+        '<div class="gp-move">' +
+        '<button type="button" data-move="-1" data-id="' + id + '" aria-label="قدّمها"' + (i === 0 ? " disabled" : "") + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>' +
+        '<button type="button" data-move="1" data-id="' + id + '" aria-label="أخّرها"' + (i === ids.length - 1 ? " disabled" : "") + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>' +
+        "</div></div>";
     }).join("") : '<p class="note" style="grid-column:1/-1;text-align:center;margin:18px 0">ماكو صور بعد</p>';
     ids.forEach(function (id) {
       gpGet(id).then(function (src) { var img = $("gp-grid").querySelector('.gp-thumb[data-id="' + id + '"] img'); if (img && src) img.src = src; }).catch(function () {});
     });
+  }
+  var gpOrderTimer = null;
+  function moveGroupPhoto(id, dir) {
+    var ids = gallery.ids, i = ids.indexOf(id), j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    ids[i] = ids[j]; ids[j] = id;
+    renderGpAdmin();
+    // نحفظ بعد ما يوكف عن التحريك شوية، حتى ما نرسل طلب لكل ضغطة
+    clearTimeout(gpOrderTimer);
+    gpOrderTimer = setTimeout(function () {
+      rpc("a9_admin_group_photo_order", { p_token: getToken(), p_ids: gallery.ids.slice() }).then(function (r) {
+        gpMsg(r && r.ok ? "انحفظ الترتيب" : "ما گدرنا نحفظ الترتيب.");
+      }).catch(function () { gpMsg("ما گدرنا نحفظ الترتيب."); });
+    }, 700);
   }
   // ---------- Telegram announcements (admin) ----------
   var tg = { view: null, editing: null };
@@ -1804,7 +1823,10 @@
   $("gp-input").addEventListener("change", onGroupPhotos);
   $("tg-list").addEventListener("click", onTgClick);
   $("tg-status").addEventListener("click", onTgClick);
-  $("gp-grid").addEventListener("click", function (e) { var b = e.target.closest("[data-del]"); if (b) removeGroupPhoto(Number(b.dataset.del)); });
+  $("gp-grid").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-del]"); if (b) return removeGroupPhoto(Number(b.dataset.del));
+    var m = e.target.closest("[data-move]"); if (m && !m.disabled) moveGroupPhoto(Number(m.dataset.id), Number(m.dataset.move));
+  });
   bindGalleryHold();
   $("person-chat").addEventListener("click", function () {
     var id = $("person-chat").dataset.id; closePerson(); closeDrawer(); location.hash = "chat/" + id;
