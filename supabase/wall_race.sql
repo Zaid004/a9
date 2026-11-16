@@ -1,0 +1,6 @@
+-- منصة A9: لعبة سباق الجدران (انطبقت على القاعدة مباشرة، migration: a9_wall_race)
+-- الجداول: private.wall_games و private.wall_open (مباريات مفتوحة).
+-- القواعد بالقاعدة: private.wg_blocked, wg_step_ok, wg_moves, wg_path, wg_wall_err (نفسها بـ assets/walls.js).
+-- الدوال: a9_wall_challenge, a9_wall_respond, a9_wall_get, a9_wall_move, a9_wall_rematch, a9_wall_list,
+--         a9_wall_open_create, a9_wall_open_join, a9_wall_open_cancel.
+-- المباراة بدون نشاط نص ساعة تنسد (private.xo_close_idle كل دقيقة، تشمل XO والجدران).
