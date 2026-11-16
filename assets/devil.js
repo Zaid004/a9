@@ -47,7 +47,7 @@
       dv.cur = d; $("dv-title").textContent = "الانتقام من " + first(d.name);
       setupCanvas();
       dv.img = null;
-      photoGet(d).then(function (src) { if (!src) return; var im = new Image(); im.onload = function () { dv.img = im; }; im.src = src; });
+      photoGet(d).then(function (src) { if (!src) return; var im = new Image(); im.onload = function () { dv.img = im; if (dv.game && !dv.game.running) draw(); }; im.src = src; });
       newGame(); draw();
       overlay('<button type="button" class="btn dv-start" data-dv-act="start">ابدي</button>');
     };
@@ -69,7 +69,7 @@
     var R = W * 0.12;
     dv.game = {
       running: false, t: 0, hits: 0, last: 0,
-      d: { x: W / 2, y: H * 0.28, vx: W * 0.3, vy: W * 0.12, R: R, turn: 0.8, shake: 0, ouch: 0, ouchSide: 1, dodged: {} },
+      d: { x: W / 2, y: H * 0.28, vx: W * 0.3, vy: W * 0.12, R: R, turn: 0.8, shake: 0, ouch: 0, sad: 0, ouchSide: 1, dodged: {} },
       stones: [], parts: [],
       sling: { x: W / 2, y: H - 64 }, pull: null, nextId: 1
     };
@@ -107,7 +107,7 @@
     if (d.x > maxX) { d.x = maxX; d.vx = -Math.abs(d.vx); }
     if (d.y < minY) { d.y = minY; d.vy = Math.abs(d.vy); }
     if (d.y > maxY) { d.y = maxY; d.vy = -Math.abs(d.vy); }
-    d.shake = Math.max(0, d.shake - dt); d.ouch = Math.max(0, d.ouch - dt);
+    d.shake = Math.max(0, d.shake - dt); d.ouch = Math.max(0, d.ouch - dt); d.sad = Math.max(0, d.sad - dt);
 
     var grav = H * 0.55;
     g.stones = g.stones.filter(function (s) {
@@ -129,7 +129,7 @@
   function hit(g, s) {
     var d = g.d;
     g.hits++;
-    d.shake = 0.35; d.ouch = 0.75; d.ouchSide = s.x < d.x ? 1 : -1;
+    d.shake = 0.35; d.ouch = 0.75; d.sad = 1.8; d.ouchSide = s.x < d.x ? 1 : -1;
     for (var i = 0; i < 8; i++) {
       var a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 140;
       g.parts.push({ x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: 0.5 + Math.random() * 0.3 });
@@ -189,16 +189,29 @@
       ctx.quadraticCurveTo(x + k * R * 0.65, y - R * 1.15, x + k * R * 0.75, y - R * 0.55);
       ctx.closePath(); ctx.fill();
     });
-    // الوجه
-    ctx.save(); ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
-    if (dv.img) {
-      var iw = dv.img.width, ih = dv.img.height, s = Math.max((R * 2) / iw, (R * 2) / ih);
-      ctx.drawImage(dv.img, x - (iw * s) / 2, y - (ih * s) / 2, iw * s, ih * s);
-    } else { ctx.fillStyle = "#fecaca"; ctx.fillRect(x - R, y - R, R * 2, R * 2); }
-    if (d.ouch > 0.45) { ctx.fillStyle = "rgba(220, 38, 38, .35)"; ctx.fillRect(x - R, y - R, R * 2, R * 2); }
-    ctx.restore();
-    ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
+    // الوجه: مقصوص (بيضاوي بدون خلفية) أو دائري
+    var face = (dv.cur && dv.cur.face) || null, img = dv.img;
+    var sadK = Math.min(1, d.sad * 1.6);
+    if (img && face && face.cut) {
+      var hw = R * 2.3, hh = hw * img.height / img.width, hx = x - hw / 2, hy = y - hh * 0.55;
+      ctx.drawImage(img, hx, hy, hw, hh);
+      if (d.ouch > 0.45) { ctx.save(); ctx.beginPath(); ctx.ellipse(x, hy + hh / 2, hw * 0.46, hh * 0.47, 0, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = "rgba(220, 38, 38, .25)"; ctx.fillRect(hx, hy, hw, hh); ctx.restore(); }
+      if (sadK > 0) drawSad(img, face, hx, hy, hw, hh, sadK, t);
+      ctx.restore();
+    } else {
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+      var bx0 = x - R, by0 = y - R, bs = R * 2;
+      if (img) {
+        var iw = img.width, ih = img.height, sc = Math.max(bs / iw, bs / ih), dw = iw * sc, dh = ih * sc;
+        ctx.drawImage(img, x - dw / 2, y - dh / 2, dw, dh);
+        bx0 = x - dw / 2; by0 = y - dh / 2;
+        if (sadK > 0) drawSad(img, face || DEF_FACE, bx0, by0, dw, dh, sadK, t);
+      } else { ctx.fillStyle = "#fecaca"; ctx.fillRect(x - R, y - R, bs, bs); }
+      if (d.ouch > 0.45) { ctx.fillStyle = "rgba(220, 38, 38, .3)"; ctx.fillRect(x - R, y - R, bs, bs); }
+      ctx.restore();
+      ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     // آخ!
     if (d.ouch > 0) {
       var bx = x + d.ouchSide * R * 1.35, by = y - R * 1.15, a = Math.min(1, d.ouch * 3);
@@ -211,6 +224,35 @@
       ctx.fillStyle = "#dc2626"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("آخ!", bx, by + 1);
       ctx.restore();
     }
+  }
+  // الوجه الحزين: الحلگ ينقلب، حواجب حزينة، ودموع
+  var DEF_FACE = { e1: [0.36, 0.45], e2: [0.64, 0.45], m: [0.5, 0.72], mw: 0.3, mh: 0.1 };
+  function drawSad(img, f, x, y, w, h, k, t) {
+    var iw = img.width, ih = img.height;
+    // الحلگ مقلوب = زعلان
+    var mw = f.mw * w, mh = f.mh * h, mx = x + f.m[0] * w, my = y + f.m[1] * h;
+    ctx.save(); ctx.globalAlpha = k;
+    ctx.beginPath(); ctx.ellipse(mx, my, mw / 2, mh / 2, 0, 0, Math.PI * 2); ctx.clip();
+    ctx.translate(mx, my); ctx.scale(1, -1);
+    ctx.drawImage(img, (f.m[0] - f.mw / 2) * iw, (f.m[1] - f.mh / 2) * ih, f.mw * iw, f.mh * ih, -mw / 2, -mh / 2, mw, mh);
+    ctx.restore();
+    // الحواجب والدموع
+    var eyes = [f.e1, f.e2], L = w * 0.11, lw = Math.max(2, w * 0.028);
+    ctx.save(); ctx.globalAlpha = k; ctx.lineCap = "round";
+    eyes.forEach(function (e, i) {
+      var ex = x + e[0] * w, ey = y + e[1] * h, inner = i === 0 ? 1 : -1;
+      ctx.strokeStyle = "#1c1917"; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.moveTo(ex - inner * L * 0.75, ey - h * 0.06); ctx.lineTo(ex + inner * L * 0.55, ey - h * 0.11); ctx.stroke();
+      for (var j = 0; j < 2; j++) {
+        var ph = (t * 1.4 + j * 0.5 + i * 0.25) % 1, tx = ex + inner * w * 0.01, ty = ey + h * 0.04 + ph * h * 0.22, r = w * 0.03;
+        ctx.globalAlpha = k * (1 - ph * 0.6);
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath(); ctx.moveTo(tx, ty - r * 1.6); ctx.quadraticCurveTo(tx + r, ty, tx, ty + r); ctx.quadraticCurveTo(tx - r, ty, tx, ty - r * 1.6); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.arc(tx - r * 0.3, ty, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = k;
+    });
+    ctx.restore();
   }
   function roundRect(x, y, w, h, r) {
     ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
