@@ -123,9 +123,9 @@
       <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
     </a>
 
-    <a href="#xo" class="exam-card games-card">
+    <a href="#games" class="exam-card games-card">
       <span class="exam-ico xo-ico"><b>X</b><b class="o">O</b></span>
-      <span class="done-main"><b>الألعاب</b><span class="done-sub" id="games-mini">لعبة XO · تحدى زملاءك</span></span>
+      <span class="done-main"><b>الألعاب</b><span class="done-sub" id="games-mini">XO · سباق الجدران</span></span>
       <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
     </a>
 
@@ -178,8 +178,60 @@
   </main>
 
   <!-- لعبة XO -->
-  <main id="xo" class="view page narrow" hidden>
+  <main id="games" class="view page narrow" hidden>
     <a href="#" class="back">رجوع</a>
+    <h1>الألعاب</h1>
+    <div class="games-hub">
+      <a href="#xo" class="game-pick">
+        <span class="game-pick-ico xo-ico"><b>X</b><b class="o">O</b></span>
+        <span class="game-pick-main"><b>لعبة XO</b><span>ثلاثة بصف واحد. ضد الكمبيوتر، ويه صديق، أو تحدى زميل</span></span>
+      </a>
+      <a href="#walls" class="game-pick">
+        <span class="game-pick-ico wl-ico"><i></i><i></i></span>
+        <span class="game-pick-main"><b>سباق الجدران</b><span>وصّل قطعتك لطرف اللوحة الثاني، وسد طريق خصمك بالجدران</span></span>
+      </a>
+    </div>
+  </main>
+
+  <main id="walls" class="view page narrow" hidden>
+    <a href="#games" class="back">رجوع</a>
+    <h1>سباق الجدران</h1>
+    <div class="xo-stats wl-stats" id="wl-stats"></div>
+    <div class="xo-modes">
+      <button type="button" class="xo-mode" data-wmode="ai"><span class="xo-mode-ico wl-mode-ico"><i></i></span><b>ضد الكمبيوتر</b><span>تمرّن قبل ما تتحدى</span></button>
+      <button type="button" class="xo-mode" data-wmode="friend"><span class="xo-mode-ico wl-mode-ico b"><i></i></span><b>ويه صديق</b><span>على نفس الموبايل</span></button>
+    </div>
+    <details class="card wl-rules">
+      <summary>شلون تلعب</summary>
+      <ul>
+        <li>كل لاعب يبدي من نص طرفه، والفايز أول واحد يوصل للطرف الثاني.</li>
+        <li>بكل دور يا تحرك قطعتك خطوة وحدة، يا تحط جدار.</li>
+        <li>كل لاعب عنده 10 جدران، والجدار يغطي مربعين.</li>
+        <li>إذا خصمك گدامك، تكدر تقفز فوگه. وإذا وراه جدار، تقفز على جنبه.</li>
+        <li>ما يصير تسد الطريق كله على أي لاعب، لازم يبقى عنده طريق.</li>
+      </ul>
+    </details>
+    <h2 class="card-title section-h">مباريات مفتوحة</h2>
+    <div id="wl-open" class="list"></div>
+    <h2 class="card-title section-h">تحدياتك</h2>
+    <div id="wl-games" class="list"></div>
+    <h2 class="card-title section-h">تحدّى طالب</h2>
+    <input id="wl-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+    <div id="wl-people" class="list"></div>
+  </main>
+
+  <main id="wallplay" class="view page narrow" hidden>
+    <a href="#walls" class="back">رجوع</a>
+    <div class="xo-players" id="wl-players"></div>
+    <p class="xo-status" id="wl-status"></p>
+    <div class="wl-board" id="wl-board"></div>
+    <div class="wl-tools" id="wl-tools"></div>
+    <p class="note center-text wl-msg" id="wl-msg"></p>
+    <div class="xo-actions" id="wl-actions"></div>
+  </main>
+
+  <main id="xo" class="view page narrow" hidden>
+    <a href="#games" class="back">رجوع</a>
     <h1>لعبة XO</h1>
     <div class="xo-stats" id="xo-stats"></div>
 
@@ -464,6 +516,7 @@
 
   <script src="assets/config.js?v=__V__"></script>
   <script src="assets/gyn.js?v=__V__"></script>
+  <script src="assets/walls.js?v=__V__"></script>
   <script src="assets/app.js?v=__V__"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol === "https:") {
