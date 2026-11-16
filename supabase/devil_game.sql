@@ -1,0 +1,4 @@
+-- منصة A9: لعبة الانتقام من الشيطان (انطبقت على القاعدة مباشرة، migration: a9_devil_game)
+-- الجداول: private.devils (الطالب، صورته، رقم نسخة الصورة)، private.devil_scores (أحسن نتيجة، عدد الجولات، مجموع الإصابات).
+-- الدوال: a9_devils, a9_devil_photo, a9_devil_board, a9_devil_score, a9_admin_devil_set, a9_admin_devil_remove.
+-- الصور ما تنحط بالكود لأن ملفات الموقع منشورة؛ تنرفع من صفحة الإدارة وتنحفظ بالقاعدة.

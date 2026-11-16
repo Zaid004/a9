@@ -125,7 +125,7 @@
 
     <a href="#games" class="exam-card games-card">
       <span class="exam-ico xo-ico"><b>X</b><b class="o">O</b></span>
-      <span class="done-main"><b>الألعاب</b><span class="done-sub" id="games-mini">XO · سباق الجدران</span></span>
+      <span class="done-main"><b>الألعاب</b><span class="done-sub" id="games-mini">XO · الجدران · الشيطان</span></span>
       <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
     </a>
 
@@ -190,6 +190,10 @@
         <span class="game-pick-ico wl-ico"><i></i><i></i></span>
         <span class="game-pick-main"><b>سباق الجدران</b></span>
       </a>
+      <a href="#devil" class="game-pick">
+        <span class="game-pick-ico dv-ico"><i></i><i></i></span>
+        <span class="game-pick-main"><b>الانتقام من الشيطان</b></span>
+      </a>
     </div>
   </main>
 
@@ -227,6 +231,20 @@
     <div class="wl-board" id="wl-board"></div>
     <p class="note center-text wl-msg" id="wl-msg"></p>
     <div class="xo-actions" id="wl-actions"></div>
+  </main>
+
+  <main id="devil" class="view page narrow" hidden>
+    <a href="#games" class="back">رجوع</a>
+    <h1>الانتقام من الشيطان</h1>
+    <h2 class="card-title section-h">اختار الشيطان</h2>
+    <div id="dv-list" class="dv-list"></div>
+  </main>
+
+  <main id="devilplay" class="view page narrow" hidden>
+    <a href="#devil" class="back">رجوع</a>
+    <h1 id="dv-title" class="dv-title"></h1>
+    <div class="dv-hud"><span class="dv-hits"><b id="dv-hits">0</b> إصابة</span><div class="dv-timebar"><i id="dv-time"></i></div></div>
+    <div class="dv-stage"><canvas id="dv-canvas"></canvas><div id="dv-over" class="dv-over" hidden></div></div>
   </main>
 
   <main id="xo" class="view page narrow" hidden>
@@ -501,6 +519,17 @@
       <p id="tg-msg" class="note center-text" hidden></p>
     </section>
 
+    <section class="card dv-admin">
+      <h2 class="card-title">شياطين اللعبة</h2>
+      <div id="dv-admin-list" class="list"></div>
+      <div class="dv-add">
+        <select id="dv-student" class="input"></select>
+        <label for="dv-file" class="btn">رفع صورة</label>
+        <input id="dv-file" type="file" accept="image/*" hidden />
+      </div>
+      <p id="dv-admin-msg" class="note center-text" hidden></p>
+    </section>
+
     <h2 class="card-title" style="margin:20px 0 10px">الطلاب</h2>
     <div id="admin-list" class="list"></div>
   </main>
@@ -516,6 +545,7 @@
   <script src="assets/config.js?v=__V__"></script>
   <script src="assets/gyn.js?v=__V__"></script>
   <script src="assets/walls.js?v=__V__"></script>
+  <script src="assets/devil.js?v=__V__"></script>
   <script src="assets/app.js?v=__V__"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol === "https:") {

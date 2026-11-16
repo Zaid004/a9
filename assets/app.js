@@ -54,7 +54,7 @@
 
   function syncFab() { var f = $("home-fab"); if (f) f.hidden = !(state.unread > 0 && !$("home").hidden); }
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam", "xo", "xoplay", "games", "walls", "wallplay"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam", "xo", "xoplay", "games", "walls", "wallplay", "devil", "devilplay"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     syncFab();
     window.scrollTo(0, 0);
   }
@@ -908,7 +908,10 @@
     if (h === "exam") { show("exam"); openExam(); return; }
     if (h !== "xoplay") stopXoPoll();
     if (h !== "wall" && h !== "wallplay" && h !== "walls" && window.A9W) window.A9W.stop();
+    if (h !== "devilplay" && window.A9D) window.A9D.stop();
     if (h === "games") { show("games"); return; }
+    if (h === "devil") { show("devil"); window.A9D.home(); return; }
+    if (h === "devilplay" && parts[1]) { show("devilplay"); window.A9D.play(Number(parts[1])); return; }
     if (h === "walls") { show("walls"); window.A9W.home(); return; }
     if (h === "wall" && parts[1]) { show("wallplay"); window.A9W.online(Number(parts[1])); return; }
     if (h === "wallplay") { show("wallplay"); window.A9W.local(parts[1] === "friend" ? "friend" : "ai"); return; }
@@ -918,7 +921,7 @@
     if (h === "rot-gyn") { show("rot-gyn"); openRotGyn(); return; }
     if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
-    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); openTgAdmin(); }
+    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); openTgAdmin(); if (window.A9D) window.A9D.admin(); }
     else if (h === "me") { show("me"); renderMe(); renderNotifRow(); $("install-row").hidden = isStandalone(); }
     else { show("home"); renderHome(); pollUnread(); }
   }
@@ -1612,7 +1615,7 @@
         return '<div class="xo-game' + cls + '">' + avatar(memberById(op.id) || op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
       }).join("") : '<p class="note center-text" style="padding:16px">ماكو تحديات. اختار طالب من تحت وتحداه.</p>';
       var hot = games.filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
-      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · سباق الجدران";
+      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · الجدران · الشيطان";
     }).catch(function () { if (first) $("xo-games").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب التحديات.</p>'; });
   }
   function renderXoPeople() {
@@ -1760,7 +1763,7 @@
     rpc("a9_xo_list", { p_token: getToken() }).then(function (d) {
       var hot = (d.games || []).filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
       
-      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · سباق الجدران";
+      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · الجدران · الشيطان";
       $("games-mini").classList.toggle("hot", !!hot);
     }).catch(function () {});
   }
