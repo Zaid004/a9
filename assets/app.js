@@ -46,8 +46,10 @@
 
   function loading(on) { $("loading").hidden = !on; }
 
+  function syncFab() { var f = $("home-fab"); if (f) f.hidden = !(state.unread > 0 && !$("home").hidden); }
   function show(id) {
     ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam", "xo", "xoplay"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    syncFab();
     window.scrollTo(0, 0);
   }
 
@@ -423,6 +425,10 @@
     $("menu-dot").hidden = !n;
     $("nav-unread").hidden = !n;
     $("nav-unread").textContent = n > 99 ? "99+" : n;
+    // دائرة صغيرة تحت يمين الرئيسية إذا اكو رسائل ما مقروءة
+    state.unread = n;
+    $("home-fab-n").textContent = n > 99 ? "99+" : n;
+    syncFab();
   }
   function pollUnread() {
     if (!state.me) return;
@@ -901,7 +907,7 @@
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
     else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); openTgAdmin(); }
     else if (h === "me") { show("me"); renderMe(); renderNotifRow(); $("install-row").hidden = isStandalone(); }
-    else { show("home"); renderHome(); }
+    else { show("home"); renderHome(); pollUnread(); }
   }
 
   // ---------- group photos (gallery) ----------

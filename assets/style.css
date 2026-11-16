@@ -1040,3 +1040,20 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 .tg-btns .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }
 .tg-row .cbtn:not(.join):not(.leave) { background: var(--primary-soft); color: var(--text); }
 #xo-open .ainfo, #xo-games .ainfo { flex: 1; min-width: 0; }
+
+/* ---------- دائرة الرسائل غير المقروءة بالرئيسية ---------- */
+.msg-fab {
+  position: fixed; right: 18px; bottom: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: var(--on-primary); box-shadow: 0 6px 18px rgba(15, 23, 42, .35);
+  text-decoration: none; animation: fab-in .25s ease-out;
+}
+.msg-fab[hidden] { display: none; }
+.msg-fab svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.msg-fab b {
+  position: absolute; top: -4px; left: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: #dc2626; color: #fff; font-size: .78rem; font-weight: 800; display: grid; place-items: center;
+  border: 2px solid var(--bg); box-sizing: border-box;
+}
+@keyframes fab-in { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.home { padding-bottom: 90px; }
