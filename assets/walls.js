@@ -72,7 +72,7 @@
   };
 
   // ---------- حالة الشاشة ----------
-  var ws = { mode: null, g: null, tool: "move", prev: null, poll: null, busy: false, ai: null, homeTimer: null, myOpen: null };
+  var ws = { mode: null, g: null, prev: null, poll: null, busy: false, ai: null, homeTimer: null, myOpen: null };
 
   function newLocal() {
     return { a_pos: 76, b_pos: 4, a_walls: 10, b_walls: 10, walls: [], turn: "A", status: "active", winner: null, last_move: null, me: "A" };
@@ -125,33 +125,24 @@
     // اللوحة
     var act = canAct(), s = live ? side() : null;
     var mePos = s === "A" ? g.a_pos : g.b_pos, opPos = s === "A" ? g.b_pos : g.a_pos;
-    var legal = act && ws.tool === "move" ? moves(W, mePos, opPos) : [];
+    var legal = act ? moves(W, mePos, opPos) : [];
     var html = [];
     for (var vr = 0; vr < 9; vr++) for (var vc = 0; vc < 9; vc++) {
       var real = flip ? (8 - vr) * 9 + (8 - vc) : vr * 9 + vc, rr = Math.floor(real / 9);
       var c = "wl-cell" + (rr === 0 ? " goal-a" : rr === 8 ? " goal-b" : "") + (legal.indexOf(real) !== -1 ? " can" : "");
       var pawn = real === g.a_pos ? '<i class="wl-pawn a"></i>' : real === g.b_pos ? '<i class="wl-pawn b"></i>' : "";
-      html.push('<button type="button" class="' + c + '" data-v="' + vr + "," + vc + '" style="grid-row:' + (2 * vr + 1) + ";grid-column:" + (2 * vc + 1) + '"' + (act ? "" : " disabled") + ">" + pawn + "</button>");
+      html.push('<div class="' + c + '" data-v="' + vr + "," + vc + '" style="grid-row:' + (2 * vr + 1) + ";grid-column:" + (2 * vc + 1) + '"' + ">" + pawn + "</div>");
     }
     var last = g.last_move && /[hv]/.test(g.last_move[1]) ? g.last_move.slice(1) : null;
     (g.walls || []).forEach(function (w) { html.push(wallHtml(w[0], +w[1], +w[2], w === last ? " new" : "")); });
-    if (ws.prev && act && ws.tool !== "move") html.push(wallHtml(ws.prev.o, ws.prev.r, ws.prev.c, ws.prev.err ? " bad" : " prev"));
+    if (ws.prev && act) html.push(wallHtml(ws.prev.o, ws.prev.r, ws.prev.c, ws.prev.err ? " bad" : " prev"));
     $("wl-board").innerHTML = html.join("");
 
-    // الأدوات
-    var left = s === "A" ? g.a_walls : g.b_walls;
-    $("wl-tools").innerHTML = act
-      ? '<button type="button" class="chip' + (ws.tool === "move" ? " on" : "") + '" data-tool="move">حرّك القطعة</button>' +
-        '<button type="button" class="chip' + (ws.tool === "h" ? " on" : "") + '" data-tool="h"' + (left ? "" : " disabled") + ">جدار أفقي</button>" +
-        '<button type="button" class="chip' + (ws.tool === "v" ? " on" : "") + '" data-tool="v"' + (left ? "" : " disabled") + ">جدار عمودي</button>"
-      : "";
     var msg = "";
-    if (act && ws.tool !== "move") msg = ws.prev ? (ws.prev.err ? ERR[ws.prev.err] || "ما يصير هنا" : "دوس تثبيت، أو دوس على مربع ثاني") : "دوس على مربع حتى تحط الجدار جنبه";
     if (ws.note) { msg = ws.note; ws.note = null; }
     $("wl-msg").textContent = msg;
 
     var acts = "";
-    if (act && ws.tool !== "move" && ws.prev && !ws.prev.err) acts += '<button type="button" class="btn" data-wl="place">تثبيت الجدار</button>';
     if (ws.mode === "online") {
       if (g.incoming && g.status === "pending") acts += '<button type="button" class="btn" data-wl="accept">قبول التحدي</button><button type="button" class="btn outline-danger" data-wl="decline">رفض</button>';
       else if (g.status === "done" || g.status === "declined" || g.status === "cancelled") acts += '<button type="button" class="btn" data-wl="rematch">مباراة ثانية</button>';
@@ -166,22 +157,61 @@
   }
 
   // ---------- اللعب ----------
-  function onBoard(vr, vc) {
+  // دوسة على مربع أخضر = حركة. إصبعك على اللوحة (سحب أو ضغطة طويلة) = معاينة جدار بأقرب فراغ، وتشيل إصبعك = يتثبت
+  var touch = null;
+  function anchorAt(ev) {
+    var el = $("wl-board"), rc = el.getBoundingClientRect(), pad = 8, gap = 7;
+    var inner = rc.width - pad * 2, pitch = (inner - gap * 8) / 9 + gap;
+    var x = ev.clientX - rc.left - pad, y = ev.clientY - rc.top - pad;
+    if (x < -pad || y < -pad || x > inner + pad || y > inner + pad) return null;
+    var kx = Math.min(8, Math.max(1, Math.round((x + gap / 2) / pitch))), ky = Math.min(8, Math.max(1, Math.round((y + gap / 2) / pitch)));
+    var dx = Math.abs(x - (kx * pitch - gap / 2)), dy = Math.abs(y - (ky * pitch - gap / 2));
+    var ar = ky - 1, ac = kx - 1, flip = flipped();
+    return { o: dy <= dx ? "h" : "v", r: flip ? 7 - ar : ar, c: flip ? 7 - ac : ac };
+  }
+  function wallsLeft() { var g = ws.g, s = side(); return s === "A" ? g.a_walls : g.b_walls; }
+  function showPrev(ev) {
+    var a = anchorAt(ev), g = ws.g;
+    if (!a || !wallsLeft()) { if (ws.prev) { ws.prev = null; render(); } return; }
+    if (ws.prev && ws.prev.o === a.o && ws.prev.r === a.r && ws.prev.c === a.c) return;
+    a.err = wallErr(wset(g.walls), a.o, a.r, a.c, g.a_pos, g.b_pos);
+    ws.prev = a; render();
+  }
+  function onDown(ev) {
+    if (!canAct()) return;
+    var cell = ev.target.closest(".wl-cell");
+    touch = { x: ev.clientX, y: ev.clientY, drag: false, cell: cell && cell.classList.contains("can") ? cell.dataset.v : null, id: ev.pointerId };
+    try { $("wl-board").setPointerCapture(ev.pointerId); } catch (e) {}
+    clearTimeout(touch.hold);
+    var last = { clientX: ev.clientX, clientY: ev.clientY };
+    touch.last = last;
+    touch.hold = setTimeout(function () { if (touch && !touch.drag) { touch.drag = true; showPrev(touch.last); } }, 220);
+  }
+  function onMove(ev) {
+    if (!touch || ev.pointerId !== touch.id) return;
+    touch.last = { clientX: ev.clientX, clientY: ev.clientY };
+    if (!touch.drag && Math.hypot(ev.clientX - touch.x, ev.clientY - touch.y) > 8) touch.drag = true;
+    if (touch.drag) showPrev(ev);
+  }
+  function onUp(ev) {
+    if (!touch || ev.pointerId !== touch.id) return;
+    var t = touch; touch = null; clearTimeout(t.hold);
+    if (t.drag) {
+      var p = ws.prev;
+      if (p && !p.err && anchorAt(ev)) return play(p.o, p.r, p.c);
+      ws.prev = null; return render();
+    }
+    if (t.cell) { var v = t.cell.split(","); onCell(+v[0], +v[1]); }
+  }
+  function onCancel() { if (!touch) return; clearTimeout(touch.hold); touch = null; ws.prev = null; render(); }
+  function onCell(vr, vc) {
     if (!canAct()) return;
     var g = ws.g, flip = flipped();
-    if (ws.tool === "move") {
-      var real = flip ? (8 - vr) * 9 + (8 - vc) : vr * 9 + vc, s = side();
-      var me = s === "A" ? g.a_pos : g.b_pos, op = s === "A" ? g.b_pos : g.a_pos;
-      if (moves(wset(g.walls), me, op).indexOf(real) === -1) return;
-      return play("m", Math.floor(real / 9), real % 9);
-    }
-    var ar = Math.min(vr, 7), ac = Math.min(vc, 7);
-    var r = flip ? 7 - ar : ar, c = flip ? 7 - ac : ac;
-    if (ws.prev && ws.prev.r === r && ws.prev.c === c && ws.prev.o === ws.tool && !ws.prev.err) return placePrev(); // دوسة ثانية بنفس المكان = تثبيت
-    ws.prev = { o: ws.tool, r: r, c: c, err: wallErr(wset(g.walls), ws.tool, r, c, g.a_pos, g.b_pos) };
-    render();
+    var real = flip ? (8 - vr) * 9 + (8 - vc) : vr * 9 + vc, s = side();
+    var me = s === "A" ? g.a_pos : g.b_pos, op = s === "A" ? g.b_pos : g.a_pos;
+    if (moves(wset(g.walls), me, op).indexOf(real) === -1) return;
+    play("m", Math.floor(real / 9), real % 9);
   }
-  function placePrev() { var p = ws.prev; if (!p || p.err) return; play(p.o, p.r, p.c); }
 
   function applyLocal(g, kind, r, c) {
     var s = g.turn;
@@ -200,7 +230,6 @@
     ws.prev = null;
     if (ws.mode !== "online") {
       applyLocal(ws.g, kind, r, c);
-      ws.tool = "move";
       render();
       if (ws.mode === "ai" && ws.g.status === "active" && ws.g.turn === "B") { clearTimeout(ws.ai); ws.ai = setTimeout(aiMove, 450); }
       return;
@@ -208,7 +237,7 @@
     ws.busy = true;
     A().rpc("a9_wall_move", { p_token: A().getToken(), p_game: ws.g.id, p_kind: kind, p_r: r, p_c: c }).then(function (res) {
       ws.busy = false;
-      if (res && res.ok) { ws.g = res.game; ws.tool = "move"; }
+      if (res && res.ok) ws.g = res.game;
       else ws.note = ERR[res && res.error] || "ما گدرنا نسجل الحركة، جرب مرة ثانية.";
       render();
     }).catch(function () { ws.busy = false; ws.note = "صار خطأ بالاتصال، جرب مرة ثانية."; render(); });
@@ -244,8 +273,8 @@
   function stopPoll() { clearInterval(ws.poll); ws.poll = null; }
   function online(id) {
     stopPoll(); clearTimeout(ws.ai);
-    ws.mode = "online"; ws.g = null; ws.tool = "move"; ws.prev = null; ws.busy = false;
-    $("wl-board").innerHTML = ""; $("wl-tools").innerHTML = ""; $("wl-actions").innerHTML = ""; $("wl-status").textContent = ""; $("wl-msg").textContent = "";
+    ws.mode = "online"; ws.g = null; ws.prev = null; ws.busy = false;
+    $("wl-board").innerHTML = ""; $("wl-actions").innerHTML = ""; $("wl-status").textContent = ""; $("wl-msg").textContent = "";
     var load = function () {
       return A().rpc("a9_wall_get", { p_token: A().getToken(), p_game: id }).then(function (g) {
         if (location.hash !== "#wall/" + id) return;
@@ -265,7 +294,7 @@
   }
   function local(mode) {
     stopPoll(); clearTimeout(ws.ai);
-    ws.mode = mode; ws.g = newLocal(); ws.tool = "move"; ws.prev = null; ws.busy = false;
+    ws.mode = mode; ws.g = newLocal(); ws.prev = null; ws.busy = false;
     render();
   }
 
@@ -333,9 +362,6 @@
     var b = e.target.closest("button, a"); if (!b) return;
     var d = b.dataset, tk = A().getToken();
     if (d.wmode) { location.hash = "wallplay/" + d.wmode; return; }
-    if (d.v != null) { var p = d.v.split(","); return onBoard(+p[0], +p[1]); }
-    if (d.tool) { ws.tool = d.tool; ws.prev = null; return render(); }
-    if (d.wl === "place") return placePrev();
     if (d.wl === "again") { clearTimeout(ws.ai); return local(ws.mode); }
     if (d.wl === "accept") return respond(ws.g.id, true);
     if (d.wl === "decline") return respond(ws.g.id, false);
@@ -378,6 +404,12 @@
     $("walls").addEventListener("click", onClick);
     $("wallplay").addEventListener("click", onClick);
     $("wl-search").addEventListener("input", renderPeople);
+    var bd = $("wl-board");
+    bd.addEventListener("pointerdown", onDown);
+    bd.addEventListener("pointermove", onMove);
+    bd.addEventListener("pointerup", onUp);
+    bd.addEventListener("pointercancel", onCancel);
+    bd.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   });
 
   window.A9W = { home: home, online: online, local: local, stop: stop, _rules: { moves: moves, dist: dist, wallErr: wallErr, wset: wset } };
