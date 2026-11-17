@@ -265,6 +265,24 @@
       }).join("");
     }).catch(function () {});
   }
+  // نقص الهامش الأبيض حول البطاقة: نلگى حدود اللون الأحمر، وإذا ما لگينا (بطاقة سودة) نقص على حدود اللي مو أبيض
+  function trimBox(im) {
+    var sc = Math.min(1, 400 / Math.max(im.width, im.height)), w = Math.round(im.width * sc), h = Math.round(im.height * sc);
+    var c = document.createElement("canvas"); c.width = w; c.height = h;
+    var x = c.getContext("2d"); x.drawImage(im, 0, 0, w, h);
+    var p = x.getImageData(0, 0, w, h).data;
+    function box(test, frac) {
+      var rows = [], cols = [], i, j;
+      for (j = 0; j < h; j++) { var n = 0; for (i = 0; i < w; i++) if (test(4 * (j * w + i))) n++; rows.push(n > w * frac); }
+      for (i = 0; i < w; i++) { var m = 0; for (j = 0; j < h; j++) if (test(4 * (j * w + i))) m++; cols.push(m > h * frac); }
+      var t = rows.indexOf(true), bm = rows.lastIndexOf(true), l = cols.indexOf(true), r = cols.lastIndexOf(true);
+      if (t < 0 || l < 0 || bm - t < h * 0.5 || r - l < w * 0.5) return null;
+      return { x: l / sc, y: t / sc, w: (r - l + 1) / sc, h: (bm - t + 1) / sc };
+    }
+    return box(function (k) { return p[k] > 140 && p[k + 1] < 80 && p[k + 2] < 80; }, 0.25) ||
+           box(function (k) { return p[k] < 225 || p[k + 1] < 225 || p[k + 2] < 225; }, 0.5) ||
+           { x: 0, y: 0, w: im.width, h: im.height };
+  }
   function onArtFile(e) {
     var k = e.target.dataset.kart, f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!k || !f) return;
@@ -272,8 +290,8 @@
     fr.onload = function () {
       var im = new Image();
       im.onload = function () {
-        var W = 300, H = Math.round(im.height * W / im.width), c = document.createElement("canvas"); c.width = W; c.height = H;
-        c.getContext("2d").drawImage(im, 0, 0, W, H);
+        var b = trimBox(im), W = 320, H = Math.round(b.h * W / b.w), c = document.createElement("canvas"); c.width = W; c.height = H;
+        c.getContext("2d").drawImage(im, b.x, b.y, b.w, b.h, 0, 0, W, H);
         A().loading(true);
         A().rpc("a9_admin_card_art_set", { p_token: A().getToken(), p_key: k, p_photo: c.toDataURL("image/webp", 0.85) }).then(function (r) {
           A().loading(false); var m = $("kc-art-msg"); m.hidden = false; m.textContent = r && r.ok ? "انحفظت البطاقة" : "ما گدرنا نحفظ البطاقة.";
