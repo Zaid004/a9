@@ -6,3 +6,5 @@
 -- (a9_card_teams_chat + a9_card_membership_fix) المقاعد ثابتة: players[seat+1] والفارغ null. 2 ضد 2: الفريق 1 = 0و2، الفريق 2 = 1و3.
 -- a9_card_create2/a9_card_join2 (ويه p_team)، a9_card_switch، محادثة الغرفة a9_card_chat/a9_card_chat_send (تنمسح بالـ trigger من تخلص اللعبة).
 -- فحص العضوية بـ private.card_in (array_position) لأن "= any" ويا null يطلع مجهول.
+-- (a9_card_specials) الورق الخاص: لون + s (تخطي) / r (عكس، وبلعبة اثنين مثل التخطي) / d (+2)، و wc (تبديل لون). 108 ورقة.
+-- dir = اتجاه اللعب. السحب: إذا ما عندك ورقة تنلعب بعد السحب، الدور يروح وحده (auto_passed). بـ 2 ضد 2 تنرجع mate_hand (ورق صاحبك).

@@ -13,12 +13,15 @@
   var COLORS = { r: "#dc2626", b: "#2563eb", g: "#16a34a", y: "#eab308" };
   var COLOR_NAMES = { r: "أحمر", b: "أزرق", g: "أخضر", y: "أصفر" };
   var HUE = { b: 222, g: 135, y: 50 };
+  var SYM = { s: "&#8856;", r: "&#8644;", d: "+2" };
+  var KIND = { s: "تخطي", r: "عكس", d: "+2" };
+  var AUTO_NOTE = "سحبت ورقة وما عندك شي ينلعب، فراح الدور";
   var ERR = { no_match: "هاي الورقة ما تنلعب هسه", not_your_turn: "مو دورك", already_drew: "سحبت ورقة بهذا الدور", draw_first: "اسحب ورقة أول", pick_color: "اختار لون", not_active: "اللعبة خلصت" };
 
   var cs = { room: null, st: null, poll: null, lobbyTimer: null, busy: false, art: {}, artV: {}, tinted: {}, note: "", ai: null, hash: "" };
 
   // ---------- صور البطاقات ----------
-  function artKey(card) { return card === "w4" ? "w4" : card.slice(1); }
+  function artKey(card) { return card[0] === "w" ? card : card.slice(1); }
   function loadArt(versions) {
     var need = [];
     Object.keys(versions || {}).forEach(function (k) {
@@ -65,7 +68,7 @@
     var k = artKey(card), src = cs.art[k];
     if (!src) return null;
     var col = card[0];
-    if (card === "w4" || col === "r") return src;
+    if (col === "w" || col === "r") return src;
     var key = k + ":" + col + ":" + cs.artV[k];
     if (cs.tinted[key]) return typeof cs.tinted[key] === "string" ? cs.tinted[key] : null;
     cs.tinted[key] = tint(src, col).then(function (u) { cs.tinted[key] = u; render(); });
@@ -74,21 +77,22 @@
 
   function cardHtml(card, opts) {
     opts = opts || {};
-    var cls = "kc" + (opts.big ? " big" : "") + (opts.can ? " can" : "") + (opts.dim ? " dim" : "") + (card === "w4" ? " w" : "");
+    var cls = "kc" + (opts.big ? " big" : "") + (opts.tiny ? " tiny" : "") + (opts.can ? " can" : "") + (opts.dim ? " dim" : "") + (card[0] === "w" ? " w" : "");
     var attrs = opts.play ? ' data-kplay="' + card + '"' : "";
     var img = artFor(card);
     if (img) return '<button type="button" class="' + cls + ' art"' + attrs + '><img alt="" src="' + img + '" /></button>';
-    if (card === "w4") {
-      return '<button type="button" class="' + cls + '"' + attrs + '><span class="kc-w"><i style="background:#dc2626"></i><i style="background:#2563eb"></i><i style="background:#eab308"></i><i style="background:#16a34a"></i></span><b class="kc-n">+4</b><span class="kc-c tl">+4</span><span class="kc-c br">+4</span></button>';
+    if (card[0] === "w") {
+      var wl = card === "w4" ? "+4" : "";
+      return '<button type="button" class="' + cls + '"' + attrs + '><span class="kc-w"><i style="background:#dc2626"></i><i style="background:#2563eb"></i><i style="background:#eab308"></i><i style="background:#16a34a"></i></span><b class="kc-n">' + wl + '</b><span class="kc-c tl">' + (wl || "&#9638;") + '</span><span class="kc-c br">' + (wl || "&#9638;") + "</span></button>";
     }
-    var n = card.slice(1);
+    var n = SYM[card.slice(1)] || card.slice(1);
     return '<button type="button" class="' + cls + '" style="--kc:' + COLORS[card[0]] + '"' + attrs + '><b class="kc-n">' + n + '</b><span class="kc-c tl">' + n + '</span><span class="kc-c br">' + n + "</span></button>";
   }
 
   // ---------- القواعد بالمتصفح (للتلوين بس؛ السيرفر هو اللي يقرر) ----------
   function playable(card, st) {
-    if (card === "w4") return true;
-    return card[0] === st.color || (st.top !== "w4" && card.slice(1) === st.top.slice(1));
+    if (card[0] === "w") return true;
+    return card[0] === st.color || (st.top[0] !== "w" && card.slice(1) === st.top.slice(1));
   }
 
   // ---------- صفحة اللعبة (الغرف) ----------
@@ -152,15 +156,18 @@
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function newDeck() {
     var d = [];
-    ["r", "b", "g", "y"].forEach(function (c) { d.push(c + "0"); for (var n = 1; n <= 9; n++) { d.push(c + n); d.push(c + n); } });
-    for (var k = 0; k < 4; k++) d.push("w4");
+    ["r", "b", "g", "y"].forEach(function (c) {
+      d.push(c + "0"); for (var n = 1; n <= 9; n++) { d.push(c + n); d.push(c + n); }
+      ["s", "r", "d"].forEach(function (v) { d.push(c + v); d.push(c + v); });
+    });
+    for (var k = 0; k < 4; k++) { d.push("w4"); d.push("wc"); }
     return shuffle(d);
   }
   function aiStart() {
     stop();
     var st = A().state, me = st.me || { id: 0, name: "أنت" };
     var g = { deck: newDeck(), discard: [], hands: [[], []], turn: 0, drawn: false, color: null, status: "active", winner: null };
-    var i = g.deck.findIndex(function (c) { return c !== "w4"; });
+    var i = g.deck.findIndex(function (c) { return /^[rbgy][0-9]$/.test(c); });
     g.discard.push(g.deck.splice(i, 1)[0]); g.color = g.discard[0][0];
     for (var k = 0; k < 7; k++) { g.hands[0].push(g.deck.pop()); g.hands[1].push(g.deck.pop()); }
     cs.ai = { g: g, me: me };
@@ -187,16 +194,18 @@
     var g = cs.ai.g, h = g.hands[seat], i = h.indexOf(card);
     if (i < 0 || g.turn !== seat || g.status !== "active") return false;
     if (!playable(card, { color: g.color, top: g.discard[g.discard.length - 1] })) return false;
-    h.splice(i, 1); g.discard.push(card); g.color = card === "w4" ? color : card[0]; g.drawn = false;
+    h.splice(i, 1); g.discard.push(card); g.color = card[0] === "w" ? color : card[0]; g.drawn = false;
     if (!h.length) { g.status = "done"; g.winner = seat; return true; }
-    var next = 1 - seat;
-    if (card === "w4") { g.hands[next] = g.hands[next].concat(aiTake(g, 4)); next = seat; } // اللي ياخذ +4 يطفر دوره
+    var next = 1 - seat, v = card.slice(1);
+    // بلعبة اثنين: +4 و +2 والتخطي والعكس كلها ترجع الدور لنفس اللاعب
+    if (card === "w4" || (card[0] !== "w" && v === "d")) g.hands[next] = g.hands[next].concat(aiTake(g, card === "w4" ? 4 : 2));
+    if (card === "w4" || (card[0] !== "w" && (v === "d" || v === "s" || v === "r"))) next = seat;
     g.turn = next;
     return true;
   }
   function bestColor(h) {
     var n = { r: 0, b: 0, g: 0, y: 0 };
-    h.forEach(function (c) { if (c !== "w4") n[c[0]]++; });
+    h.forEach(function (c) { if (c[0] !== "w") n[c[0]]++; });
     return Object.keys(n).sort(function (a, b) { return n[b] - n[a]; })[0];
   }
   // الجهاز: يلعب ورقة من اللون اللي عنده أكثر شي، ويخلي +4 للأخير
@@ -205,9 +214,9 @@
     var g = a.g; if (g.status !== "active" || g.turn !== 1) return;
     var h = g.hands[1], top = g.discard[g.discard.length - 1], ctx = { color: g.color, top: top };
     var pick = function () {
-      var col = bestColor(h), opts = h.filter(function (c) { return c !== "w4" && playable(c, ctx); });
-      opts.sort(function (x, y) { return (y[0] === col) - (x[0] === col); });
-      return opts[0] || (h.indexOf("w4") >= 0 ? "w4" : null);
+      var col = bestColor(h), opts = h.filter(function (c) { return c[0] !== "w" && playable(c, ctx); });
+      opts.sort(function (x, y) { return (y[0] === col) - (x[0] === col) || (/[srd]/.test(y[1]) - /[srd]/.test(x[1])); });
+      return opts[0] || (h.indexOf("wc") >= 0 ? "wc" : h.indexOf("w4") >= 0 ? "w4" : null);
     };
     var c = pick();
     if (!c && !g.drawn) { g.hands[1] = h.concat(aiTake(g, 1)); h = g.hands[1]; g.drawn = true; c = pick(); }
@@ -216,6 +225,7 @@
     aiSync();
   }
 
+  function sortHand(h) { return (h || []).slice().sort(function (a, b) { return (a[0] === "w") - (b[0] === "w") || (a < b ? -1 : a > b ? 1 : 0); }); }
   function teamOf(s, seat) { return s.mode === 22 ? seat % 2 : seat; }
   function playerAt(s, seat) { return (s.players || []).filter(function (p) { return p.seat === seat; })[0] || null; }
   function seatName(s, seat) { var p = playerAt(s, seat); return p ? p.name.split(" ")[0] : ""; }
@@ -236,7 +246,8 @@
       var tag = s.mode === 22 ? (teamOf(s, seat) === teamOf(s, me) ? '<span class="tag preg">فريقك</span>' : '<span class="tag cons">خصم</span>') : "";
       ring += '<div class="kc-opp ' + spots[k - 1] + (live && s.turn === seat ? " turn" : "") + '">' + avatarOf(p) +
         "<b>" + esc(p.name.split(" ")[0]) + "</b>" + tag +
-        '<span class="kc-fan">' + new Array(Math.min(p.count, 7) + 1).join("<i></i>") + "</span>" +
+        (s.mode === 22 && teamOf(s, seat) === teamOf(s, me) && s.mate_hand ? '<span class="kc-mate">' + sortHand(s.mate_hand).map(function (c) { return cardHtml(c, { tiny: true }); }).join("") + "</span>"
+          : '<span class="kc-fan">' + new Array(Math.min(p.count, 7) + 1).join("<i></i>") + "</span>") +
         '<span class="kc-count">' + p.count + (p.count === 1 ? " ورقة" : " ورقات") + "</span></div>";
     }
     ring += '<div class="kc-center">' +
@@ -256,7 +267,7 @@
     cs.note = "";
     // ورقي (تحت)
     var mineP = playerAt(s, me);
-    var hand = (s.hand || []).slice().sort(function (a, b) { return a === "w4" ? 1 : b === "w4" ? -1 : a < b ? -1 : a > b ? 1 : 0; });
+    var hand = sortHand(s.hand);
     html += '<div class="kc-me' + (myTurn ? " turn" : "") + '">' + (mineP ? avatarOf(mineP) : "") + "<b>إنت</b>" + (s.mode === 22 ? '<span class="tag preg">فريق ' + (teamOf(s, me) + 1) + "</span>" : "") + "</div>";
     html += '<div class="kc-hand">' + hand.map(function (c) {
       var can = myTurn && playable(c, s);
@@ -309,7 +320,7 @@
     args.p_token = A().getToken(); args.p_room = cs.room;
     return A().rpc(fn, args).then(function (r) {
       cs.busy = false;
-      if (r && r.ok) cs.st = r.state; else cs.note = ERR[r && r.error] || "ما گدرنا، جرب مرة ثانية.";
+      if (r && r.ok) { cs.st = r.state; if (r.auto_passed) cs.note = AUTO_NOTE; } else cs.note = ERR[r && r.error] || "ما گدرنا، جرب مرة ثانية.";
       render();
     }).catch(function () { cs.busy = false; cs.note = "صار خطأ بالاتصال."; render(); });
   }
@@ -360,7 +371,13 @@
     var s = cs.st; if (!s || cs.busy) return;
     var myTurn = s.status === "active" && s.turn === s.my_seat;
     if (d.kdraw && myTurn && !s.drawn) {
-      if (cs.ai) { var g = cs.ai.g; g.hands[0] = g.hands[0].concat(aiTake(g, 1)); g.drawn = true; return aiSync(); }
+      if (cs.ai) {
+        var g = cs.ai.g, ctx = { color: g.color, top: g.discard[g.discard.length - 1] };
+        g.hands[0] = g.hands[0].concat(aiTake(g, 1));
+        if (g.hands[0].some(function (c) { return playable(c, ctx); })) g.drawn = true;
+        else { g.drawn = false; g.turn = 1; cs.note = AUTO_NOTE; }
+        return aiSync();
+      }
       return act("a9_card_draw", {});
     }
     if (d.kpass && myTurn) {
@@ -369,7 +386,7 @@
     }
     if (d.kplay && myTurn) {
       if (!playable(d.kplay, s)) { cs.note = ERR.no_match; return render(); }
-      if (d.kplay === "w4") return pickColor("w4");
+      if (d.kplay[0] === "w") return pickColor(d.kplay);
       return playCard(d.kplay, d.kplay[0]);
     }
     if (d.kcol != null) {
@@ -382,11 +399,12 @@
   function adminRender() {
     var box = $("kc-art-admin"); if (!box) return;
     A().rpc("a9_card_lobby", { p_token: A().getToken() }).then(function (d) { return loadArt(d.art); }).then(function () {
-      var keys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "w4"];
+      var keys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "s", "r", "d", "w4", "wc"];
+      var LBL = { s: "تخطي", r: "عكس", d: "+2", w4: "+4", wc: "تبديل لون" };
       box.innerHTML = keys.map(function (k) {
         var src = cs.art[k];
-        return '<label class="kc-art-slot">' + (src ? '<img alt="" src="' + src + '" />' : '<span>' + (k === "w4" ? "+4" : k) + "</span>") +
-          '<input type="file" accept="image/*" hidden data-kart="' + k + '" /><small>' + (k === "w4" ? "+4" : "رقم " + k) + "</small></label>";
+        return '<label class="kc-art-slot">' + (src ? '<img alt="" src="' + src + '" />' : '<span>' + (LBL[k] || k) + "</span>") +
+          '<input type="file" accept="image/*" hidden data-kart="' + k + '" /><small>' + (LBL[k] || "رقم " + k) + "</small></label>";
       }).join("");
     }).catch(function () {});
   }
