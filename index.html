@@ -125,7 +125,7 @@
 
     <a href="#games" class="exam-card games-card">
       <span class="exam-ico xo-ico"><b>X</b><b class="o">O</b></span>
-      <span class="done-main"><b>الألعاب</b><span class="done-sub" id="games-mini">XO · الجدران · الشيطان · خلّصها</span></span>
+      <span class="done-main"><b>الألعاب</b><span class="done-sub" id="games-mini">XO · الجدران · الشيطان · 9no</span></span>
       <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
     </a>
 
@@ -192,7 +192,7 @@
       </a>
       <a href="#cards" class="game-pick">
         <span class="game-pick-ico kc-ico"><i></i><i></i></span>
-        <span class="game-pick-main"><b>خلّصها</b></span>
+        <span class="game-pick-main"><b>9no</b></span>
       </a>
       <a href="#devil" class="game-pick">
         <span class="game-pick-ico dv-ico"><i></i><i></i></span>
@@ -235,11 +235,12 @@
     <div class="wl-board" id="wl-board"></div>
     <p class="note center-text wl-msg" id="wl-msg"></p>
     <div class="xo-actions" id="wl-actions"></div>
+    <div id="wl-chat" class="gchat-wrap" hidden></div>
   </main>
 
   <main id="cards" class="view page narrow" hidden>
     <a href="#games" class="back">رجوع</a>
-    <h1>خلّصها</h1>
+    <h1>9no</h1>
     <div class="xo-stats kc-stats"><div><b id="kc-wins">0</b><span>فوز</span></div></div>
     <h2 class="card-title section-h">سوّي لعبة</h2>
     <div class="kc-modes">
@@ -247,6 +248,7 @@
       <button type="button" class="xo-mode" data-kmode="3"><b>3 لاعبين</b></button>
       <button type="button" class="xo-mode" data-kmode="4"><b>4 لاعبين</b></button>
       <button type="button" class="xo-mode" data-kmode="22"><b>2 ضد 2</b></button>
+      <button type="button" class="xo-mode kc-ai-btn" data-kai="1"><b>ضد الجهاز</b></button>
     </div>
     <h2 class="card-title section-h">ألعابك</h2>
     <div id="kc-mine" class="list"></div>
@@ -257,6 +259,7 @@
   <main id="cardplay" class="view page narrow" hidden>
     <a href="#cards" class="back">رجوع</a>
     <div id="kc-table"></div>
+    <div id="kc-chat" class="gchat-wrap" hidden></div>
     <div id="kc-pick" class="kc-pick" hidden></div>
   </main>
 
@@ -306,6 +309,7 @@
     <p class="xo-status" id="xo-status"></p>
     <div class="xo-board" id="xo-board"></div>
     <div class="xo-actions" id="xo-actions"></div>
+    <div id="xo-chat" class="gchat-wrap" hidden></div>
   </main>
 
   <!-- روتة ENT -->
@@ -547,7 +551,7 @@
     </section>
 
     <section class="card kc-admin">
-      <h2 class="card-title">بطاقات خلّصها</h2>
+      <h2 class="card-title">بطاقات 9no</h2>
       <div id="kc-art-admin" class="kc-art-grid"></div>
       <p id="kc-art-msg" class="note center-text" hidden></p>
     </section>
@@ -577,6 +581,7 @@
 
   <script src="assets/config.js?v=__V__"></script>
   <script src="assets/gyn.js?v=__V__"></script>
+  <script src="assets/gamechat.js?v=__V__"></script>
   <script src="assets/walls.js?v=__V__"></script>
   <script src="assets/devil.js?v=__V__"></script>
   <script src="assets/cards.js?v=__V__"></script>

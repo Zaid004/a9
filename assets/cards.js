@@ -1,4 +1,4 @@
-// لعبة الورق "خلّصها": ورق بألوان وأرقام، والفايز أول واحد يخلص ورقه.
+// لعبة الورق "9no": ورق بألوان وأرقام، والفايز أول واحد يخلص ورقه.
 // الورق: r/b/g/y + رقم (0-9)، و w4 (+4 وتبديل لون). السيرفر يوزع ويخفي الورق ويتأكد من كل حركة.
 // صور البطاقات: بطاقة حمرة لكل رقم، والمتصفح يطلع منها الأزرق والأخضر والأصفر.
 (function () {
@@ -8,14 +8,14 @@
   function $(id) { return document.getElementById(id); }
   function esc(s) { return A().esc(s); }
 
-  var NAME = "خلّصها";
+  var NAME = "9no";
   var MODES = { 2: "1 ضد 1", 3: "3 لاعبين", 4: "4 لاعبين", 22: "2 ضد 2" };
   var COLORS = { r: "#dc2626", b: "#2563eb", g: "#16a34a", y: "#eab308" };
   var COLOR_NAMES = { r: "أحمر", b: "أزرق", g: "أخضر", y: "أصفر" };
   var HUE = { b: 222, g: 135, y: 50 };
   var ERR = { no_match: "هاي الورقة ما تنلعب هسه", not_your_turn: "مو دورك", already_drew: "سحبت ورقة بهذا الدور", draw_first: "اسحب ورقة أول", pick_color: "اختار لون", not_active: "اللعبة خلصت" };
 
-  var cs = { room: null, st: null, poll: null, lobbyTimer: null, busy: false, art: {}, artV: {}, tinted: {}, note: "" };
+  var cs = { room: null, st: null, poll: null, lobbyTimer: null, busy: false, art: {}, artV: {}, tinted: {}, note: "", ai: null, hash: "" };
 
   // ---------- صور البطاقات ----------
   function artKey(card) { return card === "w4" ? "w4" : card.slice(1); }
@@ -101,6 +101,7 @@
     }, 6000);
   }
   function names(players) { return (players || []).map(function (p) { return esc(p.name.split(" ")[0]); }).join("، "); }
+  function teamNames(r, t) { return (r.players || []).filter(function (p) { return p.seat % 2 === t; }).map(function (p) { return esc(p.name.split(" ")[0]); }).join("، ") || "فارغ"; }
   function refreshLobby(first) {
     return A().rpc("a9_card_lobby", { p_token: A().getToken() }).then(function (d) {
       if (location.hash !== "#cards") return;
@@ -112,31 +113,34 @@
       }).join("");
       $("kc-mine").innerHTML = mine || '<p class="note center-text" style="padding:14px">ماكو ألعاب شغالة.</p>';
       var open = (d.open || []).map(function (r) {
-        var left = r.seats - r.players.length;
-        return '<div class="xo-game' + (r.mine ? " hot" : "") + '"><div class="ainfo"><b>' + MODES[r.mode] + '</b><span class="note">' + names(r.players) + " · ينتظر " + left + (left === 1 ? " لاعب" : " لاعبين") + "</span></div>" +
-          (r.mine ? '<a class="cbtn join" href="#card/' + r.id + '">فتح</a>' : '<button type="button" class="cbtn join" data-kjoin="' + r.id + '">ادخل</button>') + "</div>";
+        var left = r.free;
+        var info = r.mode === 22 ? "فريق 1: " + teamNames(r, 0) + " · فريق 2: " + teamNames(r, 1) : names(r.players) + " · ينتظر " + left + (left === 1 ? " لاعب" : " لاعبين");
+        var btns = r.mine ? '<a class="cbtn join" href="#card/' + r.id + '">فتح</a>'
+          : r.mode === 22 ? [0, 1].map(function (t) { return '<button type="button" class="cbtn join" data-kjoin="' + r.id + '" data-kteam="' + t + '"' + (r.free_teams && r.free_teams[t] ? "" : " disabled") + ">فريق " + (t + 1) + "</button>"; }).join("")
+          : '<button type="button" class="cbtn join" data-kjoin="' + r.id + '">ادخل</button>';
+        return '<div class="xo-game' + (r.mine ? " hot" : "") + '"><div class="ainfo"><b>' + MODES[r.mode] + '</b><span class="note">' + info + "</span></div>" + btns + "</div>";
       }).join("");
       $("kc-open").innerHTML = open || '<p class="note center-text" style="padding:14px">ماكو غرف مفتوحة. سوّي وحدة من فوگ.</p>';
     }).catch(function () { if (first) $("kc-open").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب الغرف.</p>'; });
   }
 
-  // ---------- الطاولة ----------
-  function stopPoll() { clearInterval(cs.poll); cs.poll = null; }
+  // ---------- الطاولة (أونلاين) ----------
+  function stopPoll() { clearInterval(cs.poll); cs.poll = null; clearTimeout(cs.botTimer); }
   function table(id) {
     stop();
-    cs.room = id; cs.st = null; cs.note = "";
+    cs.ai = null; cs.room = id; cs.st = null; cs.note = ""; cs.hash = "#card/" + id;
     $("kc-table").innerHTML = '<p class="note center-text" style="padding:30px">لحظة...</p>';
     A().loadMembers().catch(function () {});
     var load = function () {
       return A().rpc("a9_card_state", { p_token: A().getToken(), p_room: id }).then(function (s) {
-        if (location.hash !== "#card/" + id || cs.busy) return;
+        if (location.hash !== cs.hash || cs.busy) return;
         if (!cs.st || cs.st.updated_at !== s.updated_at || cs.st.status !== s.status) { cs.st = s; render(); }
       });
     };
     A().rpc("a9_card_lobby", { p_token: A().getToken() }).then(function (d) { return loadArt(d.art); }).then(function () { if (cs.st) render(); }).catch(function () {});
     load().catch(function () { $("kc-table").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نفتح اللعبة.</p>'; });
     cs.poll = setInterval(function () {
-      if (location.hash !== "#card/" + id) return stopPoll();
+      if (location.hash !== cs.hash) return stopPoll();
       var s = cs.st; if (document.hidden || !s) return;
       if (s.status === "done" || s.status === "cancelled") return;
       if (s.status === "active" && s.turn === s.my_seat) return;
@@ -144,31 +148,101 @@
     }, 2000);
   }
 
-  function seatName(s, seat) { var p = (s.players || [])[seat]; return p ? p.name.split(" ")[0] : ""; }
+  // ---------- ضد الجهاز (كلها بالمتصفح) ----------
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function newDeck() {
+    var d = [];
+    ["r", "b", "g", "y"].forEach(function (c) { d.push(c + "0"); for (var n = 1; n <= 9; n++) { d.push(c + n); d.push(c + n); } });
+    for (var k = 0; k < 4; k++) d.push("w4");
+    return shuffle(d);
+  }
+  function aiStart() {
+    stop();
+    var st = A().state, me = st.me || { id: 0, name: "أنت" };
+    var g = { deck: newDeck(), discard: [], hands: [[], []], turn: 0, drawn: false, color: null, status: "active", winner: null };
+    var i = g.deck.findIndex(function (c) { return c !== "w4"; });
+    g.discard.push(g.deck.splice(i, 1)[0]); g.color = g.discard[0][0];
+    for (var k = 0; k < 7; k++) { g.hands[0].push(g.deck.pop()); g.hands[1].push(g.deck.pop()); }
+    cs.ai = { g: g, me: me };
+    cs.room = null; cs.hash = "#cardai"; cs.note = "";
+    aiSync();
+  }
+  function aiTake(g, n) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      if (!g.deck.length) { if (g.discard.length <= 1) break; var top = g.discard.pop(); g.deck = shuffle(g.discard); g.discard = [top]; }
+      out.push(g.deck.pop());
+    }
+    return out;
+  }
+  function aiSync() {
+    var a = cs.ai, g = a.g;
+    cs.st = { id: "ai", mode: 2, seats: 2, status: g.status, my_seat: 0, hand: g.hands[0].slice(), top: g.discard[g.discard.length - 1], color: g.color,
+      turn: g.turn, drawn: g.drawn, deck_count: g.deck.length, winner_seat: g.winner, updated_at: Date.now(),
+      players: [{ seat: 0, id: a.me.id, name: a.me.name, count: g.hands[0].length }, { seat: 1, id: null, name: "الجهاز", count: g.hands[1].length, bot: true }] };
+    render();
+    if (g.status === "active" && g.turn === 1) { clearTimeout(cs.botTimer); cs.botTimer = setTimeout(aiBot, 900); }
+  }
+  function aiPlay(seat, card, color) {
+    var g = cs.ai.g, h = g.hands[seat], i = h.indexOf(card);
+    if (i < 0 || g.turn !== seat || g.status !== "active") return false;
+    if (!playable(card, { color: g.color, top: g.discard[g.discard.length - 1] })) return false;
+    h.splice(i, 1); g.discard.push(card); g.color = card === "w4" ? color : card[0]; g.drawn = false;
+    if (!h.length) { g.status = "done"; g.winner = seat; return true; }
+    var next = 1 - seat;
+    if (card === "w4") { g.hands[next] = g.hands[next].concat(aiTake(g, 4)); next = seat; } // اللي ياخذ +4 يطفر دوره
+    g.turn = next;
+    return true;
+  }
+  function bestColor(h) {
+    var n = { r: 0, b: 0, g: 0, y: 0 };
+    h.forEach(function (c) { if (c !== "w4") n[c[0]]++; });
+    return Object.keys(n).sort(function (a, b) { return n[b] - n[a]; })[0];
+  }
+  // الجهاز: يلعب ورقة من اللون اللي عنده أكثر شي، ويخلي +4 للأخير
+  function aiBot() {
+    var a = cs.ai; if (!a || location.hash !== "#cardai") return;
+    var g = a.g; if (g.status !== "active" || g.turn !== 1) return;
+    var h = g.hands[1], top = g.discard[g.discard.length - 1], ctx = { color: g.color, top: top };
+    var pick = function () {
+      var col = bestColor(h), opts = h.filter(function (c) { return c !== "w4" && playable(c, ctx); });
+      opts.sort(function (x, y) { return (y[0] === col) - (x[0] === col); });
+      return opts[0] || (h.indexOf("w4") >= 0 ? "w4" : null);
+    };
+    var c = pick();
+    if (!c && !g.drawn) { g.hands[1] = h.concat(aiTake(g, 1)); h = g.hands[1]; g.drawn = true; c = pick(); }
+    if (c) aiPlay(1, c, bestColor(h.filter(function (x) { return x !== c; })));
+    else { g.drawn = false; g.turn = 0; }
+    aiSync();
+  }
+
   function teamOf(s, seat) { return s.mode === 22 ? seat % 2 : seat; }
+  function playerAt(s, seat) { return (s.players || []).filter(function (p) { return p.seat === seat; })[0] || null; }
+  function seatName(s, seat) { var p = playerAt(s, seat); return p ? p.name.split(" ")[0] : ""; }
+  function avatarOf(p) { return p.bot ? '<span class="avatar kc-bot">AI</span>' : A().avatar(A().memberById(p.id) || p); }
+
+  // مكان كل لاعب حول الطاولة: إنت تحت، واللي بعدك يسار، وبعده فوگ، وبعده يمين
+  var SPOTS = { 2: ["top"], 3: ["left", "right"], 4: ["left", "top", "right"] };
 
   function render() {
-    var s = cs.st; if (!s || location.hash !== "#card/" + s.id) return;
+    var s = cs.st; if (!s || location.hash !== cs.hash) return;
     var me = s.my_seat, html = "";
-    if (s.status === "open" || (s.status === "cancelled" && !s.top)) {
-      var left = s.seats - (s.players || []).length;
-      html = '<div class="kc-wait"><h2>' + MODES[s.mode] + "</h2>" +
-        '<div class="kc-seats">' + (s.players || []).map(function (p) { return '<div class="kc-seat">' + A().avatar(A().memberById(p.id) || p) + "<b>" + esc(p.name.split(" ")[0]) + "</b></div>"; }).join("") +
-        new Array(Math.max(0, left) + 1).join('<div class="kc-seat empty"><span class="avatar">?</span><b>ينتظر</b></div>') + "</div>" +
-        (s.status === "cancelled" ? '<p class="note center-text">انلغت الغرفة.</p>' : '<p class="note center-text">اللعبة تبدي وحدها من يكمل العدد.</p>' +
-        '<button type="button" class="btn outline-danger" data-kleave="1">' + (me === 0 ? "إلغاء الغرفة" : "اطلع من الغرفة") + "</button>") + "</div>";
-      $("kc-table").innerHTML = html;
-      return;
-    }
+    if (s.status === "open" || (s.status === "cancelled" && !s.top)) { renderWait(s); return; }
     var live = s.status === "active", myTurn = live && s.turn === me;
-    // الخصوم
-    var others = (s.players || []).filter(function (p) { return p.seat !== me; });
-    html += '<div class="kc-opps">' + others.map(function (p) {
-      var mate = s.mode === 22 && teamOf(s, p.seat) === teamOf(s, me);
-      return '<div class="kc-opp' + (live && s.turn === p.seat ? " turn" : "") + '">' + A().avatar(A().memberById(p.id) || p) +
-        "<b>" + esc(p.name.split(" ")[0]) + "</b>" + (mate ? '<span class="tag preg">فريقك</span>' : "") +
-        '<span class="kc-count"><i class="kc-mini"></i>' + p.count + "</span></div>";
-    }).join("") + "</div>";
+    // الطاولة
+    var spots = SPOTS[s.seats] || [], ring = '<div class="kc-ring s' + s.seats + '">';
+    for (var k = 1; k < s.seats; k++) {
+      var seat = (me + k) % s.seats, p = playerAt(s, seat); if (!p) continue;
+      var tag = s.mode === 22 ? (teamOf(s, seat) === teamOf(s, me) ? '<span class="tag preg">فريقك</span>' : '<span class="tag cons">خصم</span>') : "";
+      ring += '<div class="kc-opp ' + spots[k - 1] + (live && s.turn === seat ? " turn" : "") + '">' + avatarOf(p) +
+        "<b>" + esc(p.name.split(" ")[0]) + "</b>" + tag +
+        '<span class="kc-fan">' + new Array(Math.min(p.count, 7) + 1).join("<i></i>") + "</span>" +
+        '<span class="kc-count">' + p.count + (p.count === 1 ? " ورقة" : " ورقات") + "</span></div>";
+    }
+    ring += '<div class="kc-center">' +
+      '<button type="button" class="kc kc-back' + (myTurn && !s.drawn ? " can" : "") + '" data-kdraw="1"' + (myTurn && !s.drawn ? "" : " disabled") + '><span>' + NAME + '</span><small>' + s.deck_count + "</small></button>" +
+      '<div class="kc-pile">' + (s.top ? cardHtml(s.top, { big: true }) : "") + "</div>" +
+      '<div class="kc-color" style="--kc:' + COLORS[s.color] + '"><i></i><span>' + COLOR_NAMES[s.color] + "</span></div></div></div>";
     // النص
     var st = "", cls = "xo-status";
     if (live) st = myTurn ? (s.drawn ? "سحبت ورقة: العبها أو مرّر" : "دورك") : "دور " + seatName(s, s.turn);
@@ -177,25 +251,57 @@
       st = won ? (s.winner_seat === me ? "فزت!" : "فاز فريقك!") : "فاز " + seatName(s, s.winner_seat);
       cls += won ? " won" : " lost";
     } else st = "انلغت اللعبة لأن ما صار لعب نص ساعة";
-    html += '<p class="' + cls + '">' + st + "</p>";
-    // الوسط
-    html += '<div class="kc-center">' +
-      '<button type="button" class="kc kc-back' + (myTurn && !s.drawn ? " can" : "") + '" data-kdraw="1"' + (myTurn && !s.drawn ? "" : " disabled") + '><span>' + NAME + '</span><small>' + s.deck_count + "</small></button>" +
-      '<div class="kc-pile">' + (s.top ? cardHtml(s.top, { big: true }) : "") + "</div>" +
-      '<div class="kc-color" style="--kc:' + COLORS[s.color] + '"><i></i><span>' + COLOR_NAMES[s.color] + "</span></div></div>";
+    html += ring + '<p class="' + cls + '">' + st + "</p>";
     html += '<p class="note center-text kc-note">' + esc(cs.note || "") + "</p>";
     cs.note = "";
-    // ورقي
+    // ورقي (تحت)
+    var mineP = playerAt(s, me);
     var hand = (s.hand || []).slice().sort(function (a, b) { return a === "w4" ? 1 : b === "w4" ? -1 : a < b ? -1 : a > b ? 1 : 0; });
+    html += '<div class="kc-me' + (myTurn ? " turn" : "") + '">' + (mineP ? avatarOf(mineP) : "") + "<b>إنت</b>" + (s.mode === 22 ? '<span class="tag preg">فريق ' + (teamOf(s, me) + 1) + "</span>" : "") + "</div>";
     html += '<div class="kc-hand">' + hand.map(function (c) {
       var can = myTurn && playable(c, s);
       return cardHtml(c, { can: can, dim: myTurn && !can, play: true });
     }).join("") + "</div>";
     var acts = "";
     if (myTurn && s.drawn) acts += '<button type="button" class="btn ghost" data-kpass="1">مرّر الدور</button>';
-    if (s.status === "done" || s.status === "cancelled") acts += '<button type="button" class="btn" data-kagain="' + s.mode + '">لعبة جديدة</button>';
+    if (s.status === "done" || s.status === "cancelled") acts += cs.ai ? '<button type="button" class="btn" data-kai="1">جولة ثانية</button>' : '<button type="button" class="btn" data-kagain="' + s.mode + '">لعبة جديدة</button>';
     html += '<div class="xo-actions">' + acts + "</div>";
     $("kc-table").innerHTML = html;
+    mountChat(s);
+  }
+
+  function renderWait(s) {
+    var me = s.my_seat, html = '<div class="kc-wait"><h2>' + MODES[s.mode] + "</h2>";
+    var seat = function (i) {
+      var p = playerAt(s, i);
+      return p ? '<div class="kc-seat' + (i === me ? " me" : "") + '">' + avatarOf(p) + "<b>" + esc(p.name.split(" ")[0]) + "</b></div>"
+               : '<div class="kc-seat empty"><span class="avatar">?</span><b>ينتظر</b></div>';
+    };
+    if (s.mode === 22) {
+      html += '<div class="kc-teams">' + [0, 1].map(function (t) {
+        var mineT = me >= 0 && me % 2 === t, free = !playerAt(s, t) || !playerAt(s, t + 2);
+        return '<div class="kc-team' + (mineT ? " mine" : "") + '"><h3>فريق ' + (t + 1) + "</h3><div>" + seat(t) + seat(t + 2) + "</div>" +
+          (!mineT && free && s.status === "open" ? '<button type="button" class="cbtn join" data-kswitch="1">انتقل لهذا الفريق</button>' : "") + "</div>";
+      }).join("") + "</div>";
+    } else {
+      html += '<div class="kc-seats">'; for (var i = 0; i < s.seats; i++) html += seat(i); html += "</div>";
+    }
+    html += s.status === "cancelled" ? '<p class="note center-text">انلغت الغرفة.</p>'
+      : '<p class="note center-text">اللعبة تبدي وحدها من يكمل العدد.</p><button type="button" class="btn outline-danger" data-kleave="1">اطلع من الغرفة</button>';
+    $("kc-table").innerHTML = html + "</div>";
+    mountChat(s);
+  }
+
+  // المحادثة: 1 ضد 1 = المحادثة الخاصة ويا الخصم، وأكثر = محادثة الغرفة
+  function mountChat(s) {
+    var box = $("kc-chat");
+    if (!window.A9C || !box) return;
+    if (cs.ai || s.status === "done" || s.status === "cancelled") return window.A9C.unmount();
+    if (s.seats === 2) {
+      var op = (s.players || []).filter(function (p) { return p.seat !== s.my_seat; })[0];
+      if (!op) return window.A9C.unmount();
+      window.A9C.mount(box, { kind: "dm", other: op.id, name: op.name.split(" ")[0] });
+    } else window.A9C.mount(box, { kind: "room", room: s.id });
   }
 
   function act(fn, args) {
@@ -214,24 +320,37 @@
     }).join("") + '</div><button type="button" class="btn ghost" data-kcol="">إلغاء</button></div>';
     o.hidden = false; o.dataset.card = card;
   }
+  function playCard(card, color) {
+    if (cs.ai) { if (aiPlay(0, card, color)) aiSync(); return; }
+    act("a9_card_play", { p_card: card, p_color: color });
+  }
 
   function createRoom(mode) {
     A().loading(true);
-    A().rpc("a9_card_create", { p_token: A().getToken(), p_mode: mode }).then(function (r) {
+    A().rpc("a9_card_create2", { p_token: A().getToken(), p_mode: mode, p_team: 0 }).then(function (r) {
       A().loading(false); if (r && r.ok) location.hash = "card/" + r.id;
     }).catch(function () { A().loading(false); });
   }
   function onClick(e) {
     var b = e.target.closest("button, a"); if (!b) return;
     var d = b.dataset;
+    if (d.kai) { if (location.hash === "#cardai") aiStart(); else location.hash = "cardai"; return; }
     if (d.kmode) return createRoom(Number(d.kmode));
     if (d.kagain) return createRoom(Number(d.kagain));
     if (d.kjoin) {
       A().loading(true);
-      A().rpc("a9_card_join", { p_token: A().getToken(), p_room: Number(d.kjoin) }).then(function (r) {
+      A().rpc("a9_card_join2", { p_token: A().getToken(), p_room: Number(d.kjoin), p_team: d.kteam != null ? Number(d.kteam) : null }).then(function (r) {
         A().loading(false);
-        if (r && r.ok) location.hash = "card/" + r.id; else { alert(r && r.error === "full" ? "الغرفة امتلت." : "الغرفة ما متاحة."); refreshLobby(true); }
+        if (r && r.ok) location.hash = "card/" + r.id;
+        else { alert(r && r.error === "team_full" ? "هذا الفريق امتلى." : r && r.error === "full" ? "الغرفة امتلت." : "الغرفة ما متاحة."); refreshLobby(true); }
       }).catch(function () { A().loading(false); });
+      return;
+    }
+    if (d.kswitch) {
+      A().rpc("a9_card_switch", { p_token: A().getToken(), p_room: cs.room }).then(function (r) {
+        if (!r || !r.ok) alert("الفريق امتلى.");
+        return A().rpc("a9_card_state", { p_token: A().getToken(), p_room: cs.room });
+      }).then(function (s) { if (s) { cs.st = s; render(); } });
       return;
     }
     if (d.kleave) {
@@ -240,16 +359,22 @@
     }
     var s = cs.st; if (!s || cs.busy) return;
     var myTurn = s.status === "active" && s.turn === s.my_seat;
-    if (d.kdraw && myTurn && !s.drawn) return act("a9_card_draw", {});
-    if (d.kpass && myTurn) return act("a9_card_pass", {});
+    if (d.kdraw && myTurn && !s.drawn) {
+      if (cs.ai) { var g = cs.ai.g; g.hands[0] = g.hands[0].concat(aiTake(g, 1)); g.drawn = true; return aiSync(); }
+      return act("a9_card_draw", {});
+    }
+    if (d.kpass && myTurn) {
+      if (cs.ai) { cs.ai.g.drawn = false; cs.ai.g.turn = 1; return aiSync(); }
+      return act("a9_card_pass", {});
+    }
     if (d.kplay && myTurn) {
       if (!playable(d.kplay, s)) { cs.note = ERR.no_match; return render(); }
       if (d.kplay === "w4") return pickColor("w4");
-      return act("a9_card_play", { p_card: d.kplay, p_color: d.kplay[0] });
+      return playCard(d.kplay, d.kplay[0]);
     }
     if (d.kcol != null) {
       var o = $("kc-pick"); o.hidden = true;
-      if (d.kcol) act("a9_card_play", { p_card: o.dataset.card, p_color: d.kcol });
+      if (d.kcol) playCard(o.dataset.card, d.kcol);
     }
   }
 
@@ -304,6 +429,10 @@
   }
 
   function stop() { stopPoll(); clearInterval(cs.lobbyTimer); }
+  function ai() {
+    A().rpc("a9_card_lobby", { p_token: A().getToken() }).then(function (d) { return loadArt(d.art); }).then(function () { if (cs.ai) render(); }).catch(function () {});
+    aiStart();
+  }
 
   document.addEventListener("DOMContentLoaded", function () {
     $("cards").addEventListener("click", onClick);
@@ -311,5 +440,5 @@
     var adm = $("kc-art-admin"); if (adm) adm.addEventListener("change", onArtFile);
   });
 
-  window.A9K = { lobby: lobby, table: table, stop: stop, admin: adminRender };
+  window.A9K = { lobby: lobby, table: table, ai: ai, stop: stop, admin: adminRender };
 })();

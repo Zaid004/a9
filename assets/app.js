@@ -737,7 +737,7 @@
     xo_challenge: "تحدي XO", xo_accept: "قبل تحدي XO", xo_decline: "رفض تحدي XO", xo_win: "فاز بـ XO", xo_draw: "تعادل بـ XO", xo_open: "سوّى مباراة XO مفتوحة", xo_join: "دخل مباراة XO مفتوحة",
     wall_challenge: "تحدي سباق الجدران", wall_accept: "قبل تحدي سباق الجدران", wall_decline: "رفض تحدي سباق الجدران", wall_win: "فاز بسباق الجدران",
     wall_open: "سوّى مباراة جدران مفتوحة", wall_join: "دخل مباراة جدران مفتوحة",
-    card_create: "سوّى لعبة خلّصها", card_win: "فاز بخلّصها",
+    card_create: "سوّى لعبة 9no", card_win: "فاز بـ 9no",
     group_create: "سوّى مجموعة محادثة", group_add: "ضاف أعضاء لمجموعة", group_leave: "طلع من مجموعة", group_message: "رسالة بمجموعة",
     consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
     consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
@@ -910,8 +910,10 @@
     if (h !== "xoplay") stopXoPoll();
     if (h !== "wall" && h !== "wallplay" && h !== "walls" && window.A9W) window.A9W.stop();
     if (h !== "devilplay" && window.A9D) window.A9D.stop();
-    if (h !== "card" && h !== "cards" && window.A9K) window.A9K.stop();
+    if (h !== "card" && h !== "cards" && h !== "cardai" && window.A9K) window.A9K.stop();
+    if (window.A9C && !((h === "card" || h === "xo" || h === "wall") && parts[1])) window.A9C.unmount();
     if (h === "cards") { show("cards"); window.A9K.lobby(); return; }
+    if (h === "cardai") { show("cardplay"); window.A9K.ai(); return; }
     if (h === "card" && parts[1]) { show("cardplay"); window.A9K.table(Number(parts[1])); return; }
     if (h === "games") { show("games"); return; }
     if (h === "devil") { show("devil"); window.A9D.home(); return; }
@@ -1540,6 +1542,7 @@
 
   // ----- local: AI / friend -----
   function openXoLocal(mode) {
+    if (window.A9C) window.A9C.unmount();
     xo.mode = mode; xo.board = "........."; xo.turn = "X"; xo.game = null; xo.scores = { X: 0, O: 0, D: 0 };
     $("xo-level").hidden = mode !== "ai";
     Array.prototype.forEach.call($("xo-level").children, function (b) { b.classList.toggle("on", b.dataset.level === xo.level); });
@@ -1619,7 +1622,7 @@
         return '<div class="xo-game' + cls + '">' + avatar(memberById(op.id) || op) + '<div class="ainfo"><b>' + esc(op.name) + '</b><span class="note">' + st + "</span></div>" + btns + "</div>";
       }).join("") : '<p class="note center-text" style="padding:16px">ماكو تحديات. اختار طالب من تحت وتحداه.</p>';
       var hot = games.filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
-      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · الجدران · الشيطان · خلّصها";
+      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · الجدران · الشيطان · 9no";
     }).catch(function () { if (first) $("xo-games").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب التحديات.</p>'; });
   }
   function renderXoPeople() {
@@ -1637,6 +1640,7 @@
         if (location.hash !== "#xo/" + id) return;
         var changed = !xo.game || xo.game.board !== g.board || xo.game.status !== g.status;
         xo.game = g; if (changed) renderOnline();
+        if (window.A9C && g.opponent && g.opponent.id) window.A9C.mount($("xo-chat"), { kind: "dm", other: g.opponent.id, name: (g.opponent.name || "").split(" ")[0] });
       });
     };
     loadMembers().then(function () { if (xo.game && location.hash === "#xo/" + id) renderOnline(); }).catch(function () {});
@@ -1767,7 +1771,7 @@
     rpc("a9_xo_list", { p_token: getToken() }).then(function (d) {
       var hot = (d.games || []).filter(function (g) { return g.incoming || (g.status === "active" && g.turn === g.me); }).length;
       
-      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · الجدران · الشيطان · خلّصها";
+      $("games-mini").textContent = hot ? hot + " تحدي ينتظرك" : "XO · الجدران · الشيطان · 9no";
       $("games-mini").classList.toggle("hot", !!hot);
     }).catch(function () {});
   }
