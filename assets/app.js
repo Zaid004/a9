@@ -737,7 +737,7 @@
     xo_challenge: "تحدي XO", xo_accept: "قبل تحدي XO", xo_decline: "رفض تحدي XO", xo_win: "فاز بـ XO", xo_draw: "تعادل بـ XO", xo_open: "سوّى مباراة XO مفتوحة", xo_join: "دخل مباراة XO مفتوحة",
     wall_challenge: "تحدي سباق الجدران", wall_accept: "قبل تحدي سباق الجدران", wall_decline: "رفض تحدي سباق الجدران", wall_win: "فاز بسباق الجدران",
     wall_open: "سوّى مباراة جدران مفتوحة", wall_join: "دخل مباراة جدران مفتوحة",
-    card_create: "سوّى لعبة 9no", card_win: "فاز بـ 9no",
+    card_create: "سوّى لعبة 9no", card_win: "فاز بـ 9no", card_invite: "دعا طالب يلعب 9no",
     group_create: "سوّى مجموعة محادثة", group_add: "ضاف أعضاء لمجموعة", group_leave: "طلع من مجموعة", group_message: "رسالة بمجموعة",
     consult_join: "انضم لمجموعة استشارية", consult_leave: "طلع من مجموعته الاستشارية", consult_add: "ضاف صديق لمجموعته",
     consult_assign: "وزّع طالب على مجموعة", consult_lock: "ثبّت مجموعات الاستشارية", consult_unlock: "فتح مجموعات الاستشارية",
@@ -745,7 +745,7 @@
     tg_edit: "عدّل تبليغ التيليغرام", tg_link: "ربط مجموعة التيليغرام"
   };
   var LOG_FILTERS = [["all", "الكل"], ["message", "الرسائل"], ["auth", "الدخول والتسجيل"], ["account", "الحسابات"], ["game", "الألعاب"]];
-  var LOG_GROUP = { xo_challenge: "game", xo_accept: "game", xo_decline: "game", xo_win: "game", xo_draw: "game", xo_open: "game", xo_join: "game", wall_challenge: "game", wall_accept: "game", wall_decline: "game", wall_win: "game", wall_open: "game", wall_join: "game", card_create: "game", card_win: "game", message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
+  var LOG_GROUP = { xo_challenge: "game", xo_accept: "game", xo_decline: "game", xo_win: "game", xo_draw: "game", xo_open: "game", xo_join: "game", wall_challenge: "game", wall_accept: "game", wall_decline: "game", wall_win: "game", wall_open: "game", wall_join: "game", card_create: "game", card_win: "game", card_invite: "game", message: "message", group_message: "message", group_create: "message", group_add: "message", group_leave: "message", register: "auth", login: "auth", login_failed: "auth", locked: "auth", logout: "auth",
                     avatar: "account", avatar_removed: "account", pin_changed: "account", pin_reset: "account",
                     group_photo: "account", group_photo_removed: "account",
                     consult_join: "account", consult_leave: "account", consult_add: "account", consult_assign: "account",
