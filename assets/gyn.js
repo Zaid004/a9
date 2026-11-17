@@ -20,7 +20,7 @@
     { d: "2026-11-15", p: "lab",   t: "Labour management, Episiotomy", where: "بناية طب المجتمع · الطابق الثاني" },
     { d: "2026-11-16", p: "preg",  t: "Labour management, Episiotomy" },
     { d: "2026-11-17", p: "video", t: "Partogram" },
-    { d: "2026-11-18", p: "lab",   t: "Partogram" },
+    { d: "2026-11-18", p: "lab",   t: "Partogram", where: "بناية طب المجتمع" },
     { d: "2026-11-19", p: "gyn",   t: "Partogram" },
     { d: "2026-11-22", p: "cons",  t: "Pre & post caesarean section care" },
     { d: "2026-11-23", p: "lab",   t: "Pre & post caesarean section care" },
