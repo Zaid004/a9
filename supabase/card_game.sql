@@ -1,0 +1,5 @@
+-- منصة A9: لعبة الورق "خلّصها" (انطبقت على القاعدة مباشرة، migrations: a9_card_game, a9_card_start_fix)
+-- الجداول: private.card_rooms (الغرفة والكومة والدور)، private.card_hands (ورق كل لاعب، مخفي عن الباقين)، private.card_art (صور البطاقات الحمرة).
+-- الورق: r/b/g/y + رقم (0 مرة، 1-9 مرتين) و w4 (أربع نسخ) = 80 ورقة. الأوضاع: 2، 3، 4، و 22 (فريقين).
+-- الدوال: a9_card_create, a9_card_join, a9_card_leave, a9_card_state, a9_card_play, a9_card_draw, a9_card_pass,
+--         a9_card_lobby, a9_card_art, a9_admin_card_art_set. الغرفة بدون نشاط نص ساعة تنسد (private.xo_close_idle).
