@@ -280,6 +280,7 @@
         if (location.hash !== "#wall/" + id) return;
         var changed = !ws.g || ws.g.updated_at !== g.updated_at || ws.g.status !== g.status;
         if (changed && !ws.busy) { ws.g = g; if (g.turn !== g.me) ws.prev = null; render(); }
+        if (window.A9C && g.opponent && g.opponent.id) window.A9C.mount($("wl-chat"), { kind: "dm", other: g.opponent.id, name: (g.opponent.name || "").split(" ")[0] });
       });
     };
     A().loadMembers().then(function () { if (ws.g) render(); }).catch(function () {});
@@ -293,6 +294,7 @@
     }, 2000);
   }
   function local(mode) {
+    if (window.A9C) window.A9C.unmount();
     stopPoll(); clearTimeout(ws.ai);
     ws.mode = mode; ws.g = newLocal(); ws.prev = null; ws.busy = false;
     render();

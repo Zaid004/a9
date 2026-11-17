@@ -1,5 +1,8 @@
--- منصة A9: لعبة الورق "خلّصها" (انطبقت على القاعدة مباشرة، migrations: a9_card_game, a9_card_start_fix)
+-- منصة A9: لعبة الورق "9no" (انطبقت على القاعدة مباشرة، migrations: a9_card_game, a9_card_start_fix)
 -- الجداول: private.card_rooms (الغرفة والكومة والدور)، private.card_hands (ورق كل لاعب، مخفي عن الباقين)، private.card_art (صور البطاقات الحمرة).
 -- الورق: r/b/g/y + رقم (0 مرة، 1-9 مرتين) و w4 (أربع نسخ) = 80 ورقة. الأوضاع: 2، 3، 4، و 22 (فريقين).
 -- الدوال: a9_card_create, a9_card_join, a9_card_leave, a9_card_state, a9_card_play, a9_card_draw, a9_card_pass,
 --         a9_card_lobby, a9_card_art, a9_admin_card_art_set. الغرفة بدون نشاط نص ساعة تنسد (private.xo_close_idle).
+-- (a9_card_teams_chat + a9_card_membership_fix) المقاعد ثابتة: players[seat+1] والفارغ null. 2 ضد 2: الفريق 1 = 0و2، الفريق 2 = 1و3.
+-- a9_card_create2/a9_card_join2 (ويه p_team)، a9_card_switch، محادثة الغرفة a9_card_chat/a9_card_chat_send (تنمسح بالـ trigger من تخلص اللعبة).
+-- فحص العضوية بـ private.card_in (array_position) لأن "= any" ويا null يطلع مجهول.
