@@ -1286,3 +1286,8 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 .kc-inv-row:hover { background: var(--primary-soft); }
 .kc-pick-box > .kc-inv-list { grid-template-columns: 1fr; }
 .kc-pick-box > .kc-inv-list .kc-inv-row { color: var(--text); padding: 8px 10px; font-weight: 600; border-radius: 12px; justify-content: flex-start; }
+/* انميشن السحب بـ 9no */
+.kc-fly { position: fixed; z-index: 60; pointer-events: none; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 6px 14px rgba(0,0,0,.3);
+  background: repeating-linear-gradient(45deg, #0f766e 0 8px, #115e59 8px 16px); transition: transform .6s cubic-bezier(.25,.8,.3,1), opacity .6s ease-in; will-change: transform; }
+.kc-bump { animation: kc-bump .35s ease; }
+@keyframes kc-bump { 40% { transform: scale(1.08); } }

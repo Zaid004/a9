@@ -249,7 +249,7 @@
     for (var k = 1; k < s.seats; k++) {
       var seat = (me + k) % s.seats, p = playerAt(s, seat); if (!p) continue;
       var tag = s.mode === 22 ? (teamOf(s, seat) === teamOf(s, me) ? '<span class="tag preg">فريقك</span>' : '<span class="tag cons">خصم</span>') : "";
-      ring += '<div class="kc-opp ' + spots[k - 1] + (live && s.turn === seat ? " turn" : "") + '">' + avatarOf(p) +
+      ring += '<div class="kc-opp ' + spots[k - 1] + (live && s.turn === seat ? " turn" : "") + '" data-seat="' + seat + '">' + avatarOf(p) +
         "<b>" + esc(p.name.split(" ")[0]) + "</b>" + tag +
         (s.mode === 22 && teamOf(s, seat) === teamOf(s, me) && s.mate_hand ? '<span class="kc-mate">' + sortHand(s.mate_hand).map(function (c) { return cardHtml(c, { tiny: true }); }).join("") + "</span>"
           : '<span class="kc-fan">' + new Array(Math.min(p.count, 7) + 1).join("<i></i>") + "</span>") +
@@ -284,6 +284,45 @@
     html += '<div class="xo-actions">' + acts + "</div>";
     $("kc-table").innerHTML = html;
     mountChat(s);
+    flyDraws(s);
+  }
+
+  // انميشن السحب: من يزيد ورق أي لاعب، تطير ورقات من الكومة لمكانه
+  function flyDraws(s) {
+    var now = {};
+    (s.players || []).forEach(function (p) { now[p.seat] = p.count; });
+    if (s.my_seat >= 0) now[s.my_seat] = (s.hand || []).length;
+    var prev = cs.prevKey === cs.hash ? cs.prevCounts : null;
+    cs.prevCounts = now; cs.prevKey = cs.hash;
+    if (!prev || s.status !== "active") return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var deck = document.querySelector("#kc-table .kc-back"); if (!deck) return;
+    Object.keys(now).forEach(function (seat) {
+      var n = now[seat] - (prev[seat] || 0); if (n <= 0 || prev[seat] == null) return;
+      var mine = Number(seat) === s.my_seat;
+      var target = mine ? document.querySelector("#kc-table .kc-hand") : document.querySelector('#kc-table .kc-opp[data-seat="' + seat + '"]');
+      if (target) fly(deck, target, Math.min(n, 6), mine);
+    });
+  }
+  function fly(from, to, n, mine) {
+    var fr = from.getBoundingClientRect(), tr = to.getBoundingClientRect();
+    var tx = tr.left + tr.width / 2 - (fr.left + fr.width / 2), ty = tr.top + (mine ? tr.height / 2 : tr.height * 0.6) - (fr.top + fr.height / 2);
+    for (var i = 0; i < n; i++) (function (i) {
+      var el = document.createElement("div");
+      el.className = "kc-fly";
+      el.style.left = fr.left + "px"; el.style.top = fr.top + "px"; el.style.width = fr.width + "px"; el.style.height = fr.height + "px";
+      el.style.transitionDelay = (i * 0.14) + "s";
+      document.body.appendChild(el);
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        var spread = (i - (n - 1) / 2) * 14;
+        el.style.transform = "translate(" + (tx + spread) + "px," + ty + "px) rotate(" + (spread * 1.5) + "deg) scale(" + (mine ? 0.8 : 0.4) + ")";
+        el.style.opacity = "0.15";
+      }); });
+      setTimeout(function () {
+        el.remove();
+        if (i === n - 1) { to.classList.remove("kc-bump"); void to.offsetWidth; to.classList.add("kc-bump"); }
+      }, 700 + i * 140);
+    })(i);
   }
 
   function renderWait(s) {
