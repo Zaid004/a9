@@ -1273,3 +1273,16 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 .kc.tiny .kc-n { font-size: .62rem; }
 .kc.tiny .kc-c, .kc.tiny .kc-n::before { display: none; }
 .kc.tiny .kc-w { inset: 22% 14%; gap: 1px; }
+/* دعوات 9no */
+.kc-invite { border: 2px dashed var(--border); border-radius: 14px; padding: 6px 8px; background: none; font: inherit; color: var(--muted); cursor: pointer; opacity: 1 !important; }
+.kc-invite .avatar { background: var(--primary-soft); color: var(--primary); font-weight: 800; }
+.kc-seat.invited { position: relative; opacity: .8; }
+.kc-seat.invited .tag { font-size: .65rem; }
+.kc-x { position: absolute; top: -4px; left: -4px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--exam); color: #fff; font-size: .8rem; line-height: 1; cursor: pointer; }
+.kc-priv { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 10px 0 4px; }
+.kc-inv-box { max-height: 80vh; }
+.kc-inv-list { display: grid; gap: 4px; max-height: 50vh; overflow-y: auto; text-align: start; }
+.kc-inv-row { display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 12px; background: var(--bg); font: inherit; color: var(--text); cursor: pointer; }
+.kc-inv-row:hover { background: var(--primary-soft); }
+.kc-pick-box > .kc-inv-list { grid-template-columns: 1fr; }
+.kc-pick-box > .kc-inv-list .kc-inv-row { color: var(--text); padding: 8px 10px; font-weight: 600; border-radius: 12px; justify-content: flex-start; }

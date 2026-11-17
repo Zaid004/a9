@@ -116,6 +116,11 @@
         return '<div class="xo-game' + (r.my_turn ? " hot" : "") + '"><div class="ainfo"><b>' + MODES[r.mode] + '</b><span class="note">' + names(r.players) + " · " + st + '</span></div><a class="cbtn join" href="#card/' + r.id + '">' + (r.status === "active" ? "العب" : "فتح") + "</a></div>";
       }).join("");
       $("kc-mine").innerHTML = mine || '<p class="note center-text" style="padding:14px">ماكو ألعاب شغالة.</p>';
+      var inv = (d.invites || []).map(function (r) {
+        return '<div class="xo-game hot"><div class="ainfo"><b>' + esc((r.by || "").split(" ")[0]) + " يدعوك · " + MODES[r.mode] + '</b><span class="note">' + names(r.players) + "</span></div>" +
+          '<button type="button" class="cbtn join" data-kaccept="' + r.id + '">قبول</button><button type="button" class="cbtn leave" data-kdecline="' + r.id + '">رفض</button></div>';
+      }).join("");
+      $("kc-inv-wrap").hidden = !inv; $("kc-inv").innerHTML = inv;
       var open = (d.open || []).map(function (r) {
         var left = r.free;
         var info = r.mode === 22 ? "فريق 1: " + teamNames(r, 0) + " · فريق 2: " + teamNames(r, 1) : names(r.players) + " · ينتظر " + left + (left === 1 ? " لاعب" : " لاعبين");
@@ -283,10 +288,15 @@
 
   function renderWait(s) {
     var me = s.my_seat, html = '<div class="kc-wait"><h2>' + MODES[s.mode] + "</h2>";
+    var open = s.status === "open";
     var seat = function (i) {
       var p = playerAt(s, i);
-      return p ? '<div class="kc-seat' + (i === me ? " me" : "") + '">' + avatarOf(p) + "<b>" + esc(p.name.split(" ")[0]) + "</b></div>"
-               : '<div class="kc-seat empty"><span class="avatar">?</span><b>ينتظر</b></div>';
+      if (p) return '<div class="kc-seat' + (i === me ? " me" : "") + '">' + avatarOf(p) + "<b>" + esc(p.name.split(" ")[0]) + "</b></div>";
+      var inv = (s.invites || []).filter(function (x) { return x.seat === i; })[0];
+      if (inv) return '<div class="kc-seat invited">' + A().avatar(A().memberById(inv.id) || inv) + "<b>" + esc(inv.name.split(" ")[0]) + '</b><span class="tag special">مدعو</span>' +
+        (open ? '<button type="button" class="kc-x" data-kuninv="' + i + '" aria-label="إلغاء الدعوة">×</button>' : "") + "</div>";
+      return open ? '<button type="button" class="kc-seat empty kc-invite" data-kinv="' + i + '"><span class="avatar">+</span><b>ادعُ لاعب</b></button>'
+                  : '<div class="kc-seat empty"><span class="avatar">?</span><b>ينتظر</b></div>';
     };
     if (s.mode === 22) {
       html += '<div class="kc-teams">' + [0, 1].map(function (t) {
@@ -298,7 +308,9 @@
       html += '<div class="kc-seats">'; for (var i = 0; i < s.seats; i++) html += seat(i); html += "</div>";
     }
     html += s.status === "cancelled" ? '<p class="note center-text">انلغت الغرفة.</p>'
-      : '<p class="note center-text">اللعبة تبدي وحدها من يكمل العدد.</p><button type="button" class="btn outline-danger" data-kleave="1">اطلع من الغرفة</button>';
+      : '<div class="kc-priv"><button type="button" class="chip' + (s.is_private ? " on" : "") + '" data-kpriv="1">خاصة: بس المدعوين</button>' +
+        '<button type="button" class="chip' + (s.is_private ? "" : " on") + '" data-kpriv="0">مفتوحة للكل</button></div>' +
+        '<p class="note center-text">دوس على مكان فارغ حتى تدعو لاعب. اللعبة تبدي وحدها من يكمل العدد.</p><button type="button" class="btn outline-danger" data-kleave="1">اطلع من الغرفة</button>';
     $("kc-table").innerHTML = html + "</div>";
     mountChat(s);
   }
@@ -336,6 +348,30 @@
     act("a9_card_play", { p_card: card, p_color: color });
   }
 
+  function roomCall(fn, args, errMsg) {
+    args.p_token = A().getToken(); args.p_room = cs.room;
+    return A().rpc(fn, args).then(function (r) {
+      if (r && r.ok === false && errMsg) alert(errMsg);
+      return A().rpc("a9_card_state", { p_token: A().getToken(), p_room: cs.room });
+    }).then(function (st) { if (st) { cs.st = st; render(); } }).catch(function () {});
+  }
+  function invitePicker(seat) {
+    var s = cs.st, o = $("kc-pick");
+    var taken = {}; (s.players || []).forEach(function (p) { taken[p.id] = 1; });
+    o.dataset.seat = seat;
+    var team = s.mode === 22 ? (seat % 2 === (s.my_seat % 2) ? " (لفريقك)" : " (للفريق الثاني)") : "";
+    o.innerHTML = '<div class="kc-pick-box kc-inv-box"><b>ادعُ لاعب' + team + '</b><input type="search" class="input" id="kc-inv-q" placeholder="دوّر على اسم" autocomplete="off" />' +
+      '<div class="kc-inv-list" id="kc-inv-list"></div><button type="button" class="btn ghost" data-kclose="1">إلغاء</button></div>';
+    o.hidden = false;
+    var draw = function () {
+      var q = $("kc-inv-q").value.trim(), me = A().state.me;
+      $("kc-inv-list").innerHTML = (A().state.members || []).filter(function (m) { return m.joined && !taken[m.id] && (!me || m.id !== me.id) && (!q || m.name.indexOf(q) !== -1); })
+        .map(function (m) { return '<button type="button" class="kc-inv-row" data-kinvto="' + m.id + '">' + A().avatar(m) + "<span>" + esc(m.name) + "</span></button>"; }).join("") ||
+        '<p class="note center-text">ماكو اسم بهذا البحث</p>';
+    };
+    A().loadMembers().then(draw).catch(draw);
+    $("kc-inv-q").addEventListener("input", draw);
+  }
   function createRoom(mode) {
     A().loading(true);
     A().rpc("a9_card_create2", { p_token: A().getToken(), p_mode: mode, p_team: 0 }).then(function (r) {
@@ -364,6 +400,22 @@
       }).then(function (s) { if (s) { cs.st = s; render(); } });
       return;
     }
+    if (d.kinv != null) return invitePicker(Number(d.kinv));
+    if (d.kinvto) {
+      $("kc-pick").hidden = true;
+      return roomCall("a9_card_invite", { p_student: Number(d.kinvto), p_seat: Number($("kc-pick").dataset.seat) }, "ما گدرنا ندز الدعوة.");
+    }
+    if (d.kuninv != null) return roomCall("a9_card_uninvite", { p_seat: Number(d.kuninv) });
+    if (d.kpriv != null) return roomCall("a9_card_privacy", { p_private: d.kpriv === "1" });
+    if (d.kclose) { $("kc-pick").hidden = true; return; }
+    if (d.kaccept) {
+      A().loading(true);
+      A().rpc("a9_card_join2", { p_token: A().getToken(), p_room: Number(d.kaccept), p_team: null }).then(function (r) {
+        A().loading(false); if (r && r.ok) location.hash = "card/" + r.id; else { alert("الغرفة ما متاحة هسه."); refreshLobby(true); }
+      }).catch(function () { A().loading(false); });
+      return;
+    }
+    if (d.kdecline) { A().rpc("a9_card_decline", { p_token: A().getToken(), p_room: Number(d.kdecline) }).then(function () { refreshLobby(true); }); return; }
     if (d.kleave) {
       A().rpc("a9_card_leave", { p_token: A().getToken(), p_room: cs.room }).then(function () { location.hash = "cards"; });
       return;
