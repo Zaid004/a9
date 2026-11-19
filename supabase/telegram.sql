@@ -6,3 +6,5 @@
 -- دوال الممثل: a9_admin_tg_view, a9_admin_tg_sync, a9_admin_tg_edit, a9_admin_tg_enable,
 --              a9_admin_tg_test, a9_admin_tg_link, a9_admin_tg_req
 -- النصوص التلقائية تنكتب بالمتصفح من assets/gyn.js (A9_gynAnnouncements) وتنرفع بـ a9_admin_tg_sync.
+-- (a9_tg_custom_photo) tg_announcements.photo: صورة خاصة لتبليغ يوم معين (رابط أو file_id من تيليغرام). فارغة = صورة المنصة.
+-- الإرسال صار عبر private.tg_post_photo (الليلي وزر التجربة).
