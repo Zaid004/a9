@@ -113,28 +113,34 @@
       '<div class="progress-head"><span>تقدم الروتة</span><span>' + s.done + " من " + s.total + " سشن</span></div>" +
       '<div class="bar"><i style="width:' + pct + '%"></i></div>';
 
-    var html = "";
-    var lastWeek = null;
+    // نقسم الجدول لأسابيع (كل أسبوع يبدي الأحد)
+    var weeks = [], lastWeek = null;
     DAYS.forEach(function (x, i) {
       var dt = parse(x.d);
       var sunday = new Date(dt); sunday.setDate(dt.getDate() - dt.getDay());
       var wk = sunday.getTime();
-      if (wk !== lastWeek) {
-        var n = html ? (html.match(/class="week"/g) || []).length + 1 : 1;
-        html += '<div class="week">' + (x.exam ? "الامتحانات" : "الأسبوع " + n) + "</div>";
-        lastWeek = wk;
-      }
+      if (wk !== lastWeek) { weeks.push({ n: weeks.length + 1, exam: !!x.exam, items: [] }); lastWeek = wk; }
       var cls = "row dot-" + (x.exam ? "exam" : x.special ? "special" : P[x.p].cls);
       if (lastDay(x) < t) cls += " past";
       if (i === nextIdx) cls += " current";
-      html +=
+      weeks[weeks.length - 1].items.push(
         '<div class="' + cls + '">' +
           '<div class="date">' + dateHtml(x) + "</div>" +
           '<div class="body"><div class="place">' + placeHtml(x) + "</div>" +
           drHtml(x) +
           (x.t && x.p === "lab" ? '<div class="topic">' + esc(x.t) + "</div>" : "") + "</div>" +
-        "</div>";
+        "</div>");
+      if (i === nextIdx) weeks[weeks.length - 1].current = true;
     });
+    // الترتيب: أسبوعنا أول، بعده الأسابيع الجاية، وبالآخر الأسابيع اللي فاتت
+    var cur = weeks.findIndex(function (w) { return w.current; });
+    if (cur < 0) cur = 0;
+    var order = weeks.slice(cur).concat(weeks.slice(0, cur));
+    var html = order.map(function (w, k) {
+      return (k === weeks.length - cur && cur > 0 ? '<div class="week past-head">الأسابيع اللي فاتت</div>' : "") +
+        '<div class="week' + (w.current ? " now" : "") + '">' + (w.exam ? "الامتحانات" : "الأسبوع " + w.n) + (w.current ? " · هذا الأسبوع" : "") + "</div>" +
+        w.items.join("");
+    }).join("");
     document.getElementById("list").innerHTML = html;
   }
 
