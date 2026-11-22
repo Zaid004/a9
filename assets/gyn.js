@@ -77,7 +77,7 @@
   }
 
   // الدكتور (أو دكاترة الاستشارية)
-  function drText(x) { return !x.dr ? "" : Array.isArray(x.dr) ? "الدكاترة: " + x.dr.join("، ") : "مع " + x.dr; }
+  function drText(x) { return !x.dr ? "" : Array.isArray(x.dr) ? "الدكاترة: " + x.dr.join("، ") : x.dr; }
   function drHtml(x) { var t = drText(x); return t ? '<div class="dr">' + esc(t) + "</div>" : ""; }
 
   function dateHtml(x) {
