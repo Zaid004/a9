@@ -1291,3 +1291,6 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
   background: repeating-linear-gradient(45deg, #0f766e 0 8px, #115e59 8px 16px); transition: transform .6s cubic-bezier(.25,.8,.3,1), opacity .6s ease-in; will-change: transform; }
 .kc-bump { animation: kc-bump .35s ease; }
 @keyframes kc-bump { 40% { transform: scale(1.08); } }
+/* أسماء الدكاترة بجدول الروتة */
+.dr { color: var(--text); font-size: .86rem; font-weight: 700; line-height: 1.7; margin-top: 2px; }
+.row .dr { font-size: .8rem; color: var(--muted); }

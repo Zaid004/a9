@@ -12,6 +12,9 @@
   };
 
   // جدول Group 3 — مأخوذ من جدول التدريب السريري (المرحلة الخامسة / المجموعة A)
+  // أسماء الدكاترة من جدول فرع النسائية والتوليد (مختبر المهارات = مختبر مهارات 1)
+  var CONS_DR = ["أ.م.د. نجمة محمود", "م.د. نادية نايف", "م.د. فنن يحيى", "م.د. رشا فاضل", "د. ليلى حسين", "د. ندى سعيد"];
+
   var DAYS = [
     { d: "2026-11-09", p: "video", t: "Obstetrical & gynecological history and examination, Foley's catheter & Pap smear" },
     { d: "2026-11-10", p: "lab",   t: "Obstetrical & gynecological history and examination, Foley's catheter & Pap smear" },
@@ -22,16 +25,16 @@
     { d: "2026-11-17", p: "video", t: "Partogram" },
     { d: "2026-11-18", p: "lab",   t: "Partogram", where: "بناية طب المجتمع" },
     { d: "2026-11-19", p: "gyn",   t: "Partogram" },
-    { d: "2026-11-22", p: "cons",  t: "Pre & post caesarean section care" },
-    { d: "2026-11-23", p: "lab",   t: "Pre & post caesarean section care", where: "بناية طب المجتمع" },
-    { d: "2026-11-24", p: "gyn",   t: "Pre & post caesarean section care" },
-    { d: "2026-11-25", p: "video", t: "Fetal emergency, Early pregnancy disorder" },
-    { d: "2026-11-26", p: "lab",   t: "Fetal emergency, Early pregnancy disorder", where: "بناية طب المجتمع" },
-    { d: "2026-11-29", p: "cons",  t: "Fetal emergency, Early pregnancy disorder" },
-    { d: "2026-11-30", p: "preg",  t: "APH, PPH" },
-    { d: "2026-12-01", p: "lab",   t: "APH, PPH", where: "بناية طب المجتمع" },
-    { d: "2026-12-02", p: "preg",  t: "APH, PPH, Pelvic mass, Puerperium" },
-    { d: "2026-12-03", p: "video", t: "Hypertension in pregnancy & eclampsia, D.M in pregnancy" },
+    { d: "2026-11-22", p: "cons",  t: "Pre & post caesarean section care", dr: CONS_DR },
+    { d: "2026-11-23", p: "lab",   t: "Pre & post caesarean section care", where: "بناية طب المجتمع", dr: "د. نور قصي" },
+    { d: "2026-11-24", p: "gyn",   t: "Pre & post caesarean section care", dr: "د. نور هادي" },
+    { d: "2026-11-25", p: "video", t: "Fetal emergency, Early pregnancy disorder", dr: "د. رشا سالم" },
+    { d: "2026-11-26", p: "lab",   t: "Fetal emergency, Early pregnancy disorder", where: "بناية طب المجتمع", dr: "د. نور قصي" },
+    { d: "2026-11-29", p: "cons",  t: "Fetal emergency, Early pregnancy disorder", dr: CONS_DR },
+    { d: "2026-11-30", p: "preg",  t: "APH, PPH", dr: "د. شيماء كاظم" },
+    { d: "2026-12-01", p: "lab",   t: "APH, PPH", where: "بناية طب المجتمع", dr: "د. رشا فاضل" },
+    { d: "2026-12-02", p: "preg",  t: "APH, PPH, Pelvic mass, Puerperium", dr: "د. كواكب نجم الدين" },
+    { d: "2026-12-03", p: "video", t: "Hypertension in pregnancy & eclampsia, D.M in pregnancy", dr: "د. اخلاص جبار" },
     { d: "2026-12-06", p: "lab",   t: "Hypertension in pregnancy & eclampsia, D.M in pregnancy", where: "بناية طب المجتمع" },
     { d: "2026-12-07", p: "gyn",   t: "Hypertension in pregnancy & eclampsia, D.M in pregnancy" },
     { d: "2026-12-08", special: "Genetics session", note: "لكل المجموعات" },
@@ -73,6 +76,10 @@
     return '<span class="tag ' + p.cls + '">' + p.name + "</span>" + (note ? '<span class="note' + (x.where ? " where" : "") + '">' + esc(note) + "</span>" : "");
   }
 
+  // الدكتور (أو دكاترة الاستشارية)
+  function drText(x) { return !x.dr ? "" : Array.isArray(x.dr) ? "الدكاترة: " + x.dr.join("، ") : "مع " + x.dr; }
+  function drHtml(x) { var t = drText(x); return t ? '<div class="dr">' + esc(t) + "</div>" : ""; }
+
   function dateHtml(x) {
     var a = parse(x.d);
     if (x.end) return "من " + WEEKDAYS[a.getDay()] + " " + fmt(a) + " إلى " + fmt(parse(x.end));
@@ -97,6 +104,7 @@
         '<div class="next-date">' + ICON.cal + dateHtml(x) + "</div>" +
         (x.exam ? "" : '<div class="next-time">' + ICON.clock + TIME + "</div>") +
         '<div class="next-place">' + ICON.pin + placeHtml(x) + "</div>" +
+        drHtml(x) +
         (x.t && x.p === "lab" ? '<div class="topic">' + esc(x.t) + "</div>" : "");
     }
     var s = summary();
@@ -123,6 +131,7 @@
         '<div class="' + cls + '">' +
           '<div class="date">' + dateHtml(x) + "</div>" +
           '<div class="body"><div class="place">' + placeHtml(x) + "</div>" +
+          drHtml(x) +
           (x.t && x.p === "lab" ? '<div class="topic">' + esc(x.t) + "</div>" : "") + "</div>" +
         "</div>";
     });
@@ -163,6 +172,7 @@
       else {
         var pl = P[x.p];
         lines.push(pl.name, x.where || pl.note, "الساعة " + TIME);
+        if (x.dr) lines.push(drText(x));
         if (x.p === "lab" && x.t) lines.push("الموضوع: " + x.t);
       }
       lines.push("", "https://zaid004.github.io/a9/");
