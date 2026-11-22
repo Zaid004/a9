@@ -161,7 +161,8 @@
         when: start <= now ? "اليوم" : diff === 1 ? "باچر" : WEEKDAYS[start.getDay()] + " " + fmt(start),
         place: nx.exam ? "أسبوع الامتحانات" : nx.special ? nx.special : P[nx.p].name + ((nx.where || P[nx.p].note) ? " · " + (nx.where || P[nx.p].note) : ""),
         cls: nx.exam ? "exam" : nx.special ? "special" : P[nx.p].cls,
-        time: nx.exam ? "" : TIME
+        time: nx.exam ? "" : TIME,
+        dr: drText(nx)
       };
     }
     return { done: done, total: sessions.length, next: info };

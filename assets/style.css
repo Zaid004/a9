@@ -1297,3 +1297,4 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 /* ترتيب الجدول: أسبوعنا أول */
 .week.now { color: var(--primary); }
 .week.past-head { background: none; color: var(--muted); font-size: .8rem; text-align: center; border-top: 1px dashed var(--border); }
+.rot-dr { display: block; font-size: .92rem; font-weight: 700; opacity: .95; margin-top: 2px; }
