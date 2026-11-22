@@ -1787,7 +1787,8 @@
     $("rot-count").textContent = "خلصت " + s.done + " من " + s.total + " سشن";
     $("rot-next").innerHTML = s.next
       ? '<span class="rot-label">' + (s.next.when === "اليوم" ? "اليوم" : "الجاي: " + esc(s.next.when)) + "</span>" +
-        '<span class="rot-place">' + esc(s.next.place) + (s.next.time ? " &middot; " + esc(s.next.time) : "") + "</span>"
+        '<span class="rot-place">' + esc(s.next.place) + (s.next.time ? " &middot; " + esc(s.next.time) : "") + "</span>"+
+        (s.next.dr ? '<span class="rot-dr">' + esc(s.next.dr) + "</span>" : "")
       : '<span class="rot-label">خلصت الروتة</span>';
   }
 
