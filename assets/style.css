@@ -1294,3 +1294,6 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 /* أسماء الدكاترة بجدول الروتة */
 .dr { color: var(--text); font-size: .86rem; font-weight: 700; line-height: 1.7; margin-top: 2px; }
 .row .dr { font-size: .8rem; color: var(--muted); }
+/* ترتيب الجدول: أسبوعنا أول */
+.week.now { color: var(--primary); }
+.week.past-head { background: none; color: var(--muted); font-size: .8rem; text-align: center; border-top: 1px dashed var(--border); }
