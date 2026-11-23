@@ -497,7 +497,34 @@
     var seen = state.me && state.me.is_admin && m.id !== state.me.id ? seenLabel(presence[m.id]) : "";
     $("person-badge").insertAdjacentHTML("beforeend", seen ? '<p class="note person-seen' + (presence[m.id] && presence[m.id].online ? " is-online" : "") + '">' + esc(seen) + "</p>" : "");
     $("person-chat").dataset.id = m.id;
+    loadPersonSec(m.id);
     $("person").hidden = false;
+  }
+
+  // للممثل بس: جهاز الطالب والـ IP والمكان التقريبي وسجل دخوله
+  function secRow(l, withDate) {
+    return '<div class="devlog-row">' + (withDate ? "<b>" + esc(fmtDate(l.at)) + "</b>" : "") +
+      (l.device ? "<span>" + esc(l.device) + "</span>" : "") +
+      (l.ip ? "<span>IP " + esc(l.ip) + "</span>" : "") +
+      (l.place || l.isp ? "<span>" + esc([l.place, l.isp].filter(Boolean).join(" · ")) + "</span>" : "") + "</div>";
+  }
+  function loadPersonSec(id) {
+    var box = $("person-sec");
+    box.hidden = true; box.innerHTML = "";
+    if (!state.me || !state.me.is_admin) return;
+    box.dataset.id = id;
+    box.hidden = false; box.innerHTML = '<p class="note">لحظة...</p>';
+    Promise.all([
+      rpc("a9_admin_security", { p_token: getToken() }),
+      rpc("a9_admin_device_log", { p_token: getToken(), p_student: id }).catch(function () { return []; })
+    ]).then(function (res) {
+      if (box.dataset.id !== String(id)) return;
+      var cur = (res[0] || []).filter(function (r) { return r.id === id; })[0];
+      var log = res[1] || [];
+      if (!cur || (!cur.device && !cur.ip)) { box.innerHTML = '<p class="note">ما عندنا معلومات جهاز بعد. تطلع من يفتح المنصة.</p>'; return; }
+      box.innerHTML = '<div class="psec-title">آخر جهاز' + (cur.device_at ? " · " + esc(fmtDate(cur.device_at)) : "") + "</div>" + secRow(cur, false) +
+        (log.length ? '<div class="psec-title">سجل الدخول</div><div class="psec-log">' + log.map(function (l) { return secRow(l, true); }).join("") + "</div>" : "");
+    }).catch(function () { box.innerHTML = '<p class="error">ما گدرنا نجيب المعلومات.</p>'; });
   }
   function closePerson() { $("person").hidden = true; }
 
