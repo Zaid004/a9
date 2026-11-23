@@ -260,7 +260,7 @@
   function loadAdmin() {
     loading(true);
     Promise.all([rpc("a9_admin_students", { p_token: getToken() }).then(withAvatars), loadPresence(),
-                 rpc("a9_admin_devices", { p_token: getToken() }).catch(function () { return []; })]).then(function (res) {
+                 rpc("a9_admin_security", { p_token: getToken() }).catch(function () { return []; })]).then(function (res) {
       var rows = res[0], devs = {};
       (res[2] || []).forEach(function (d) { devs[d.id] = d; });
       loading(false);
@@ -274,7 +274,7 @@
           avatar(r) +
           '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag gold">الممثل</span>' : "") + "</div>" +
           '<div class="note' + (on ? " is-online" : "") + '">' + (r.has_pin ? seenLabel(presence[r.id]) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div>" +
-          (devs[r.id] && devs[r.id].device ? '<div class="note adev">' + esc(devs[r.id].device) + "</div>" : "") + "</div>" +
+          secLines(devs[r.id], r.id) + "</div>" +
           '<span class="tag ' + (r.has_pin ? "preg" : "cons") + '">' + (r.has_pin ? "مسجّل" : "ما سجّل") + "</span>" +
           (r.has_pin && !r.is_admin ? '<button type="button" class="small-btn" data-reset="' + r.id + '" data-name="' + esc(r.name) + '">تصفير الرقم</button>' : '<span class="small-spacer"></span>') +
           "</div>";
@@ -283,6 +283,26 @@
       loading(false);
       $("admin-list").innerHTML = '<p class="error" style="padding:16px">ما عندك صلاحية، أو صار خطأ بالاتصال.</p>';
     });
+  }
+
+  function secLines(d, id) {
+    if (!d || (!d.device && !d.ip)) return "";
+    return (d.device ? '<div class="note adev">' + esc(d.device) + "</div>" : "") +
+      (d.ip ? '<div class="note adev">IP ' + esc(d.ip) + (d.place ? " · " + esc(d.place) : "") + (d.isp ? " · " + esc(d.isp) : "") + "</div>" : "") +
+      '<button type="button" class="adev-log" data-devlog="' + id + '">سجل الدخول</button><div class="devlog" id="devlog-' + id + '" hidden></div>';
+  }
+
+  function toggleDevLog(id) {
+    var box = $("devlog-" + id); if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false; box.innerHTML = '<p class="note">لحظة...</p>';
+    rpc("a9_admin_device_log", { p_token: getToken(), p_student: id }).then(function (rows) {
+      box.innerHTML = (rows && rows.length) ? rows.map(function (l) {
+        return '<div class="devlog-row"><b>' + esc(fmtDate(l.at)) + "</b>" +
+          (l.device ? "<span>" + esc(l.device) + "</span>" : "") +
+          (l.ip ? "<span>IP " + esc(l.ip) + (l.place ? " · " + esc(l.place) : "") + (l.isp ? " · " + esc(l.isp) : "") + "</span>" : "") + "</div>";
+      }).join("") : '<p class="note">ماكو سجل بعد.</p>';
+    }).catch(function () { box.innerHTML = '<p class="error">ما گدرنا نجيب السجل.</p>'; });
   }
 
   function resetPin(id, name) {
@@ -1956,6 +1976,7 @@
   document.addEventListener("visibilitychange", function () { if (!document.hidden) pollUnread(); });
   $("admin-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-reset]"); if (b) resetPin(Number(b.dataset.reset), b.dataset.name);
+    var l = e.target.closest("[data-devlog]"); if (l) toggleDevLog(Number(l.dataset.devlog));
   });
   window.addEventListener("hashchange", route);
 
