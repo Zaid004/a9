@@ -1307,3 +1307,8 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 .devlog-row span { direction: ltr; text-align: right; unicode-bidi: plaintext; opacity: .8; }
 .privacy-note { margin-top: 14px; font-size: .74rem; opacity: .7; text-align: center; }
 @media (prefers-color-scheme: dark) { .devlog-row { background: rgba(255, 255, 255, .06); } }
+.person-sec { margin-top: 14px; text-align: right; display: grid; gap: 6px; }
+.person-sec[hidden] { display: none; }
+.psec-title { font-size: .78rem; font-weight: 800; opacity: .75; margin-top: 4px; }
+.psec-log { display: grid; gap: 6px; max-height: 190px; overflow-y: auto; }
+.sheet-card { max-height: 92vh; overflow-y: auto; }
