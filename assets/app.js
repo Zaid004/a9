@@ -152,8 +152,71 @@
     }).catch(function () { loading(false); pinError("ما گدرنا نتصل، تأكد من الإنترنت."); });
   }
 
+  // ---------- الجهاز والمتصفح (يبين للممثل بصفحة الإدارة) ----------
+  var SAMSUNG = { "SM-S938": "Galaxy S25 Ultra", "SM-S936": "Galaxy S25+", "SM-S931": "Galaxy S25",
+    "SM-S928": "Galaxy S24 Ultra", "SM-S926": "Galaxy S24+", "SM-S921": "Galaxy S24", "SM-S721": "Galaxy S24 FE",
+    "SM-S918": "Galaxy S23 Ultra", "SM-S916": "Galaxy S23+", "SM-S911": "Galaxy S23", "SM-S711": "Galaxy S23 FE",
+    "SM-S908": "Galaxy S22 Ultra", "SM-S906": "Galaxy S22+", "SM-S901": "Galaxy S22",
+    "SM-A566": "Galaxy A56", "SM-A556": "Galaxy A55", "SM-A546": "Galaxy A54", "SM-A536": "Galaxy A53",
+    "SM-A366": "Galaxy A36", "SM-A356": "Galaxy A35", "SM-A346": "Galaxy A34", "SM-A256": "Galaxy A25",
+    "SM-A166": "Galaxy A16", "SM-A155": "Galaxy A15", "SM-A145": "Galaxy A14", "SM-A065": "Galaxy A06", "SM-A055": "Galaxy A05",
+    "SM-F956": "Galaxy Z Fold6", "SM-F741": "Galaxy Z Flip6", "SM-F946": "Galaxy Z Fold5", "SM-F731": "Galaxy Z Flip5",
+    "SM-N986": "Galaxy Note20 Ultra", "SM-G998": "Galaxy S21 Ultra", "SM-G991": "Galaxy S21" };
+  function niceModel(m) {
+    m = (m || "").trim();
+    if (!m || m === "K") return "";
+    var k = m.slice(0, 7).toUpperCase();
+    if (SAMSUNG[k]) return "Samsung " + SAMSUNG[k];
+    if (/^SM-/i.test(m)) return "Samsung " + m;
+    return m;
+  }
+  function browserName(ua) {
+    if (/Telegram/i.test(ua)) return "Telegram";
+    if (/Instagram/i.test(ua)) return "Instagram";
+    if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "Facebook";
+    if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
+    if (/EdgA?\/|EdgiOS/i.test(ua)) return "Edge";
+    if (/OPR\/|OPiOS/i.test(ua)) return "Opera";
+    if (/Firefox|FxiOS/i.test(ua)) return "Firefox";
+    if (/CriOS/i.test(ua)) return "Chrome";
+    if (/Chrome\//i.test(ua)) return "Chrome";
+    if (/Safari/i.test(ua)) return "Safari";
+    return "متصفح ثاني";
+  }
+  function deviceInfo() {
+    var ua = navigator.userAgent || "", dev = "", m;
+    var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
+    if (/iPhone/i.test(ua)) dev = "iPhone" + ((m = ua.match(/OS (\d+)[_.](\d+)/)) ? " · iOS " + m[1] + "." + m[2] : "");
+    else if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) dev = "iPad";
+    else if (/Android/i.test(ua)) {
+      m = ua.match(/Android [\d.]+; ([^;)]+?)(?: Build|\))/);
+      dev = niceModel(m && m[1]) || "Android";
+      if (dev.indexOf("Samsung") !== 0 && dev !== "Android") dev = dev + " (Android)";
+    }
+    else if (/Windows/i.test(ua)) dev = "Windows";
+    else if (/Macintosh/i.test(ua)) dev = "Mac";
+    else if (/Linux/i.test(ua)) dev = "Linux";
+    else dev = "جهاز غير معروف";
+    var base = function (d) { return d + " · " + browserName(ua) + (standalone ? " (مثبّت كتطبيق)" : ""); };
+    // كروم على أندرويد يخفي الموديل بالـ UA، فنطلبه منه مباشرة
+    if (/Android/i.test(ua) && navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      return navigator.userAgentData.getHighEntropyValues(["model"]).then(function (h) {
+        var nm = niceModel(h && h.model);
+        return base(nm ? (nm.indexOf("Samsung") === 0 ? nm : nm + " (Android)") : dev);
+      }).catch(function () { return base(dev); });
+    }
+    return Promise.resolve(base(dev));
+  }
+  var deviceSent = false;
+  function sendDevice() {
+    if (deviceSent || !getToken()) return;
+    deviceSent = true;
+    deviceInfo().then(function (d) { return rpc("a9_set_device", { p_token: getToken(), p_device: d }); }).catch(function () { deviceSent = false; });
+  }
+
   // ---------- session ----------
   function afterLogin() {
+    sendDevice();
     $("me-btn").hidden = false;
     $("menu-btn").hidden = false;
     startUnreadPolling();
@@ -167,7 +230,7 @@
 
   function logout() {
     var t = getToken();
-    setToken(null);
+    setToken(null); deviceSent = false;
     state.me = null; state.members = null;
     gpClearCache();
     $("me-btn").hidden = true;
@@ -196,8 +259,10 @@
 
   function loadAdmin() {
     loading(true);
-    Promise.all([rpc("a9_admin_students", { p_token: getToken() }).then(withAvatars), loadPresence()]).then(function (res) {
-      var rows = res[0];
+    Promise.all([rpc("a9_admin_students", { p_token: getToken() }).then(withAvatars), loadPresence(),
+                 rpc("a9_admin_devices", { p_token: getToken() }).catch(function () { return []; })]).then(function (res) {
+      var rows = res[0], devs = {};
+      (res[2] || []).forEach(function (d) { devs[d.id] = d; });
       loading(false);
       var online = rows.filter(function (r) { return presence[r.id] && presence[r.id].online; }).length;
       var done = rows.filter(function (r) { return r.has_pin; }).length;
@@ -208,7 +273,8 @@
         return '<div class="arow">' +
           avatar(r) +
           '<div class="ainfo"><div class="aname">' + esc(r.name) + (r.is_admin ? ' <span class="tag gold">الممثل</span>' : "") + "</div>" +
-          '<div class="note' + (on ? " is-online" : "") + '">' + (r.has_pin ? seenLabel(presence[r.id]) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div></div>" +
+          '<div class="note' + (on ? " is-online" : "") + '">' + (r.has_pin ? seenLabel(presence[r.id]) : "ما سجّل بعد") + (r.locked ? " &middot; مقفول مؤقتاً" : "") + "</div>" +
+          (devs[r.id] && devs[r.id].device ? '<div class="note adev">' + esc(devs[r.id].device) + "</div>" : "") + "</div>" +
           '<span class="tag ' + (r.has_pin ? "preg" : "cons") + '">' + (r.has_pin ? "مسجّل" : "ما سجّل") + "</span>" +
           (r.has_pin && !r.is_admin ? '<button type="button" class="small-btn" data-reset="' + r.id + '" data-name="' + esc(r.name) + '">تصفير الرقم</button>' : '<span class="small-spacer"></span>') +
           "</div>";
