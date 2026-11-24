@@ -195,6 +195,10 @@
         <span class="game-pick-ico kc-ico"><i></i><i></i></span>
         <span class="game-pick-main"><b>9no</b></span>
       </a>
+      <a href="#houses" class="game-pick">
+        <span class="game-pick-ico hb-ico"><i></i><i></i><i></i><i></i></span>
+        <span class="game-pick-main"><b>بيت بيوت</b></span>
+      </a>
       <a href="#devil" class="game-pick">
         <span class="game-pick-ico dv-ico"><i></i><i></i></span>
         <span class="game-pick-main"><b>الانتقام من الشيطان</b></span>
@@ -227,6 +231,42 @@
     <h2 class="card-title section-h">تحدّى طالب</h2>
     <input id="wl-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
     <div id="wl-people" class="list"></div>
+  </main>
+
+  <main id="houses" class="view page narrow" hidden>
+    <a href="#games" class="back">رجوع</a>
+    <h1>بيت بيوت</h1>
+    <div class="xo-stats" id="hb-stats"></div>
+    <div class="xo-modes">
+      <button type="button" class="xo-mode" data-hmode="ai"><span class="xo-mode-ico hb-mode-ico"><i></i></span><b>ضد الكمبيوتر</b><span>تمرّن قبل ما تتحدى</span></button>
+      <button type="button" class="xo-mode" data-hmode="friend"><span class="xo-mode-ico hb-mode-ico b"><i></i></span><b>ويه صديق</b><span>على نفس الموبايل</span></button>
+    </div>
+    <details class="card wl-rules">
+      <summary>شلون تلعب</summary>
+      <ul>
+        <li>الشبكة بيها 25 بيت، وكل دور ترسم خط واحد بين نقطتين.</li>
+        <li>اللي يرسم الضلع الرابع لأي بيت ياخذه، ويلعب مرة ثانية.</li>
+        <li>كل بيت وراه صورة مكان من الكلية، تبين أكثر ويا كل خط حوله، ومن يكتمل يبين اسم المكان.</li>
+        <li>من تخلص الخطوط، اللي عنده بيوت أكثر يفوز.</li>
+      </ul>
+    </details>
+    <h2 class="card-title section-h">مباريات مفتوحة</h2>
+    <div id="hb-open" class="list"></div>
+    <h2 class="card-title section-h">تحدياتك</h2>
+    <div id="hb-games" class="list"></div>
+    <h2 class="card-title section-h">تحدّى طالب</h2>
+    <input id="hb-search" class="input" type="search" placeholder="دوّر على اسم" autocomplete="off" />
+    <div id="hb-people" class="list"></div>
+  </main>
+
+  <main id="houseplay" class="view page narrow" hidden>
+    <a href="#houses" class="back">رجوع</a>
+    <div class="xo-players" id="hb-players"></div>
+    <p class="xo-status" id="hb-status"></p>
+    <div class="hb-board" id="hb-board"></div>
+    <p class="note center-text wl-msg" id="hb-msg"></p>
+    <div class="xo-actions" id="hb-actions"></div>
+    <div id="hb-chat" class="gchat-wrap" hidden></div>
   </main>
 
   <main id="wallplay" class="view page narrow" hidden>
@@ -562,6 +602,17 @@
       <p id="kc-art-msg" class="note center-text" hidden></p>
     </section>
 
+    <section class="card hp-admin">
+      <h2 class="card-title">أماكن بيت بيوت <span id="hp-count" class="count"></span></h2>
+      <div class="hp-add">
+        <input id="hp-name" class="input" type="text" maxlength="60" placeholder="اسم المكان" autocomplete="off" />
+        <label for="hp-file" class="btn">اختار الصورة</label>
+        <input id="hp-file" type="file" accept="image/*" hidden />
+      </div>
+      <p id="hp-admin-msg" class="note center-text" hidden></p>
+      <div id="hp-admin-list" class="hp-grid"></div>
+    </section>
+
     <section class="card dv-admin">
       <h2 class="card-title">شياطين اللعبة</h2>
       <div id="dv-admin-list" class="list"></div>
@@ -589,6 +640,7 @@
   <script src="assets/gyn.js?v=__V__"></script>
   <script src="assets/gamechat.js?v=__V__"></script>
   <script src="assets/walls.js?v=__V__"></script>
+  <script src="assets/houses.js?v=__V__"></script>
   <script src="assets/devil.js?v=__V__"></script>
   <script src="assets/cards.js?v=__V__"></script>
   <script src="assets/app.js?v=__V__"></script>
