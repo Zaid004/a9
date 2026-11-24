@@ -54,7 +54,7 @@
 
   function syncFab() { var f = $("home-fab"); if (f) f.hidden = !(state.unread > 0 && !$("home").hidden); }
   function show(id) {
-    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam", "xo", "xoplay", "games", "walls", "wallplay", "devil", "devilplay", "cards", "cardplay"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
+    ["login", "home", "gyn", "admin", "me", "inbox", "chat", "log", "ent", "rot-gyn", "consult", "new", "exam", "xo", "xoplay", "games", "walls", "wallplay", "houses", "houseplay", "devil", "devilplay", "cards", "cardplay"].forEach(function (v) { var el = $(v); if (el) el.hidden = v !== id; });
     syncFab();
     window.scrollTo(0, 0);
   }
@@ -1022,9 +1022,10 @@
     if (h === "exam") { show("exam"); openExam(); return; }
     if (h !== "xoplay") stopXoPoll();
     if (h !== "wall" && h !== "wallplay" && h !== "walls" && window.A9W) window.A9W.stop();
+    if (h !== "house" && h !== "houseplay" && h !== "houses" && window.A9H) window.A9H.stop();
     if (h !== "devilplay" && window.A9D) window.A9D.stop();
     if (h !== "card" && h !== "cards" && h !== "cardai" && window.A9K) window.A9K.stop();
-    if (window.A9C && !((h === "card" || h === "xo" || h === "wall") && parts[1])) window.A9C.unmount();
+    if (window.A9C && !((h === "card" || h === "xo" || h === "wall" || h === "house") && parts[1])) window.A9C.unmount();
     if (h === "cards") { show("cards"); window.A9K.lobby(); return; }
     if (h === "cardai") { show("cardplay"); window.A9K.ai(); return; }
     if (h === "card" && parts[1]) { show("cardplay"); window.A9K.table(Number(parts[1])); return; }
@@ -1032,6 +1033,9 @@
     if (h === "devil") { show("devil"); window.A9D.home(); return; }
     if (h === "devilplay" && parts[1]) { show("devilplay"); window.A9D.play(Number(parts[1])); return; }
     if (h === "walls") { show("walls"); window.A9W.home(); return; }
+    if (h === "houses") { show("houses"); window.A9H.home(); return; }
+    if (h === "house" && parts[1]) { show("houseplay"); window.A9H.online(Number(parts[1])); return; }
+    if (h === "houseplay") { show("houseplay"); window.A9H.local(parts[1] === "friend" ? "friend" : "ai"); return; }
     if (h === "wall" && parts[1]) { show("wallplay"); window.A9W.online(Number(parts[1])); return; }
     if (h === "wallplay") { show("wallplay"); window.A9W.local(parts[1] === "friend" ? "friend" : "ai"); return; }
     if (h === "xo" && parts[1]) { show("xoplay"); openXoOnline(Number(parts[1])); return; }
@@ -1040,7 +1044,7 @@
     if (h === "rot-gyn") { show("rot-gyn"); openRotGyn(); return; }
     if (h === "consult") { show("consult"); openConsult(); return; }
     if (h === "gyn") { show("gyn"); window.A9_renderGyn(); }
-    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); openTgAdmin(); if (window.A9D) window.A9D.admin(); if (window.A9K) window.A9K.admin(); }
+    else if (h === "admin" && state.me.is_admin) { show("admin"); loadAdmin(); openGpAdmin(); openTgAdmin(); if (window.A9D) window.A9D.admin(); if (window.A9K) window.A9K.admin(); if (window.A9H) window.A9H.admin(); }
     else if (h === "me") { show("me"); renderMe(); renderNotifRow(); $("install-row").hidden = isStandalone(); }
     else { show("home"); renderHome(); pollUnread(); }
   }
