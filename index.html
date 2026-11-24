@@ -579,31 +579,38 @@
     <div class="bar"><i id="admin-bar"></i></div>
     <div style="height:16px"></div>
 
-    <section class="card gp-admin">
-      <h2 class="card-title">صور المجموعة</h2>
+    <details class="card adm-sec gp-admin" data-adm="gp-admin">
+      <summary class="adm-head"><h2 class="card-title">صور المجموعة</h2><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="adm-body">
       <p class="note">تطلع بأعلى الرئيسية، والطلاب يسحبونها يمين ويسار.</p>
       <div class="gp-grid" id="gp-grid"></div>
       <label for="gp-input" class="btn gp-add">إضافة صور</label>
       <input id="gp-input" type="file" accept="image/*" multiple hidden />
       <p id="gp-msg" class="note center-text" hidden></p>
-    </section>
+    </div>
+    </details>
 
-    <section class="card tg-admin">
-      <h2 class="card-title">تبليغات التيليغرام</h2>
+    <details class="card adm-sec tg-admin" data-adm="tg-admin">
+      <summary class="adm-head"><h2 class="card-title">تبليغات التيليغرام</h2><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="adm-body">
       <p class="note">البوت ينزل تبليغ سشن باچر بمجموعة التيليغرام كل ليلة الساعة 11 المسا، والنص كله ينزل بخط عريض. تكدر تعدل نص أي يوم من هنا.</p>
       <div id="tg-status" class="tg-status"></div>
       <div id="tg-list" class="tg-list"></div>
       <p id="tg-msg" class="note center-text" hidden></p>
-    </section>
+    </div>
+    </details>
 
-    <section class="card kc-admin">
-      <h2 class="card-title">بطاقات 9no</h2>
+    <details class="card adm-sec kc-admin" data-adm="kc-admin">
+      <summary class="adm-head"><h2 class="card-title">بطاقات 9no</h2><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="adm-body">
       <div id="kc-art-admin" class="kc-art-grid"></div>
       <p id="kc-art-msg" class="note center-text" hidden></p>
-    </section>
+    </div>
+    </details>
 
-    <section class="card hp-admin">
-      <h2 class="card-title">أماكن بيت بيوت <span id="hp-count" class="count"></span></h2>
+    <details class="card adm-sec hp-admin" data-adm="hp-admin">
+      <summary class="adm-head"><h2 class="card-title">أماكن بيت بيوت <span id="hp-count" class="count"></span></h2><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="adm-body">
       <div class="hp-add">
         <input id="hp-name" class="input" type="text" maxlength="60" placeholder="اسم المكان" autocomplete="off" />
         <label for="hp-file" class="btn">اختار الصورة</label>
@@ -611,10 +618,12 @@
       </div>
       <p id="hp-admin-msg" class="note center-text" hidden></p>
       <div id="hp-admin-list" class="hp-grid"></div>
-    </section>
+    </div>
+    </details>
 
-    <section class="card dv-admin">
-      <h2 class="card-title">شياطين اللعبة</h2>
+    <details class="card adm-sec dv-admin" data-adm="dv-admin">
+      <summary class="adm-head"><h2 class="card-title">شياطين اللعبة</h2><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="adm-body">
       <div id="dv-admin-list" class="list"></div>
       <div class="dv-add">
         <select id="dv-student" class="input"></select>
@@ -622,10 +631,13 @@
         <input id="dv-file" type="file" accept="image/*" hidden />
       </div>
       <p id="dv-admin-msg" class="note center-text" hidden></p>
-    </section>
+    </div>
+    </details>
 
-    <h2 class="card-title" style="margin:20px 0 10px">الطلاب</h2>
-    <div id="admin-list" class="list"></div>
+    <details class="card adm-sec adm-students" data-adm="students">
+      <summary class="adm-head"><h2 class="card-title">الطلاب</h2><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="adm-body"><div id="admin-list" class="list"></div></div>
+    </details>
   </main>
 
   <a href="#inbox" id="home-fab" class="msg-fab" hidden aria-label="رسائل غير مقروءة">
