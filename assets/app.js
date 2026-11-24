@@ -2005,6 +2005,18 @@
   });
   $("log-more").addEventListener("click", function () { loadLog(true); });
   document.addEventListener("visibilitychange", function () { if (!document.hidden) pollUnread(); });
+  // أقسام الإدارة: نتذكر الأقسام المفتوحة
+  (function () {
+    var KEY = "a9:adm-open", openSet = {};
+    try { openSet = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
+    document.querySelectorAll("#admin details[data-adm]").forEach(function (d) {
+      if (openSet[d.dataset.adm]) d.open = true;
+      d.addEventListener("toggle", function () {
+        openSet[d.dataset.adm] = d.open;
+        try { localStorage.setItem(KEY, JSON.stringify(openSet)); } catch (e) {}
+      });
+    });
+  })();
   $("admin-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-reset]"); if (b) resetPin(Number(b.dataset.reset), b.dataset.name);
     var l = e.target.closest("[data-devlog]"); if (l) toggleDevLog(Number(l.dataset.devlog));
