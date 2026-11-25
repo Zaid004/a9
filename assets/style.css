@@ -921,7 +921,7 @@ button.msg-who { background: none; border: 0; padding: 0; font: inherit; font-si
 .exam-ico { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: rgba(255,255,255,.14); flex-shrink: 0; }
 .exam-ico svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.subj-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 14px; }
+.subj-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 4px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 14px; }
 .subj-tabs button { font: inherit; font-weight: 800; padding: 8px; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
 .subj-tabs button.on { background: var(--primary); color: var(--on-primary); }
 .my-exam { text-align: center; }

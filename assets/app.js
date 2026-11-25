@@ -1523,7 +1523,7 @@
 
   // ---------- midterm results ----------
   var EXAM = "mid1";
-  var SUBJ_NAME = { ent: "ENT", eye: "العيون", ortho: "الكسور" };
+  var SUBJ_NAME = { ent: "ENT", eye: "العيون", ortho: "الكسور", gyn: "النسائية" };
   var exam = { subj: "ent", mine: null, stage: {}, group: {}, showAll: false, sort: "abc" };
   function byName(a, b) { return a.name.localeCompare(b.name, "ar"); }
   function fmtNum(x) { return x == null ? "—" : String(Number(x)); }
@@ -1533,7 +1533,7 @@
     rpc("a9_exam_mine", { p_token: getToken(), p_exam: EXAM }).then(function (rows) {
       exam.mine = rows || [];
       if (!exam.mine.length) return;
-      $("exam-mini").innerHTML = ["ent", "eye", "ortho"].map(function (s) {
+      $("exam-mini").innerHTML = ["ent", "eye", "ortho", "gyn"].map(function (s) {
         var r = exam.mine.filter(function (x) { return x.subject === s; })[0];
         return r ? SUBJ_NAME[s] + ' <bdi dir="ltr">' + fmtNum(r.grade) + "/" + fmtNum(r.max_grade) + "</bdi>" : "";
       }).filter(Boolean).join(" &middot; ");
