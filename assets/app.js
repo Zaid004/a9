@@ -1579,6 +1579,7 @@
       var rank = 0, prev = null, i = 0;
       var ranked = rows.map(function (x) { i++; if (x.grade !== prev) { rank = i; prev = x.grade; } return Object.assign({ rank: rank }, x); });
       if (exam.sort === "abc") ranked.sort(byName);
+      $("exam-group-h").hidden = $("exam-group").hidden = exam.sort === "grp";
       $("exam-group").innerHTML = ranked.map(function (x) {
         var m = memberById(x.id) || x;
         return gradeRow(x.rank, { id: x.id, name: x.name, avatar: m.avatar }, x.grade, x.max_grade, state.me && x.id === state.me.id, false);
@@ -1593,14 +1594,137 @@
     var s = exam.subj;
     if (exam.stage[s]) return drawStage();
     $("exam-stage").innerHTML = '<p class="note center-text" style="padding:16px">جاري التحميل</p>';
-    rpc("a9_exam_stage", { p_token: getToken(), p_exam: EXAM, p_subject: s }).then(function (rows) {
+    rpc("a9_exam_stage2", { p_token: getToken(), p_exam: EXAM, p_subject: s }).then(function (rows) {
       var rank = 0, prev = null;
       exam.stage[s] = (rows || []).map(function (x, i) { if (x.grade !== prev) { rank = i + 1; prev = x.grade; } x.rank = rank; return x; });
       if (exam.subj === s) drawStage();
     }).catch(function () { $("exam-stage").innerHTML = '<p class="error" style="margin:16px">ما گدرنا نجيب درجات المرحلة.</p>'; });
   }
 
+  // ---------- إحصائيات ومخططات النتائج ----------
+  function stats(vals) {
+    var n = vals.length; if (!n) return null;
+    var mean = vals.reduce(function (a, b) { return a + b; }, 0) / n;
+    var sd = Math.sqrt(vals.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n);
+    var s = vals.slice().sort(function (a, b) { return a - b; });
+    var med = n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+    return { n: n, mean: mean, sd: sd, med: med, min: s[0], max: s[n - 1] };
+  }
+  function r2(x) { return String(Math.round(x * 100) / 100); }
+  function chartTip(ev, html) {
+    var tip = $("chart-tip");
+    if (!tip) { tip = document.createElement("div"); tip.id = "chart-tip"; tip.className = "chart-tip"; document.body.appendChild(tip); }
+    if (!html) { tip.hidden = true; return; }
+    tip.innerHTML = html; tip.hidden = false;
+    var x = Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, ev.clientX - tip.offsetWidth / 2));
+    tip.style.left = x + "px"; tip.style.top = Math.max(8, ev.clientY - tip.offsetHeight - 14) + "px";
+  }
+  function bindTips(box) {
+    var hide = function () { chartTip(null, null); };
+    box.onpointermove = function (e) { var m = e.target.closest("[data-tip]"); if (m) chartTip(e, m.getAttribute("data-tip")); else hide(); };
+    box.onpointerleave = hide;
+    box.onpointerdown = function (e) { var m = e.target.closest("[data-tip]"); if (m) chartTip(e, m.getAttribute("data-tip")); };
+  }
+
+  // توزيع درجات المرحلة: أعمدة لكل مدى، ويا خط المتوسط ومنطقة انحراف معياري واحد، ودرجتك
+  function drawDist() {
+    var box = $("exam-chart"), rows = exam.stage[exam.subj] || [];
+    var vals = rows.filter(function (x) { return x.grade != null; }).map(function (x) { return Number(x.grade); });
+    var st = stats(vals); if (!st) { box.hidden = true; return; }
+    var mx = Number(rows[0].max_grade) || 10, bins = 10, w = mx / bins, counts = [];
+    for (var i = 0; i < bins; i++) counts.push(0);
+    vals.forEach(function (v) { counts[Math.min(bins - 1, Math.floor(v / w))]++; });
+    var top = Math.max.apply(null, counts);
+    var W = 340, H = 206, L = 30, R = 10, T = 26, B = 44, pw = W - L - R, ph = H - T - B;
+    var X = function (v) { return L + (v / mx) * pw; }, Y = function (c) { return T + ph - (c / top) * ph; };
+    var bw = pw / bins, svg = [];
+    // شبكة خفيفة
+    [0, 0.5, 1].forEach(function (f) {
+      var c = Math.round(top * f), y = Y(c);
+      svg.push('<line class="ch-grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/><text class="ch-ax" x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + c + "</text>");
+    });
+    // منطقة ±1 انحراف معياري
+    var s0 = Math.max(0, st.mean - st.sd), s1 = Math.min(mx, st.mean + st.sd);
+    svg.push('<rect class="ch-band" x="' + X(s0) + '" y="' + T + '" width="' + (X(s1) - X(s0)) + '" height="' + ph + '"/>');
+    counts.forEach(function (c, k) {
+      var a = k * w, b = (k + 1) * w, x = L + k * bw + 1, h = Math.max(c ? 2 : 0, T + ph - Y(c));
+      var label = r2(a) + " – " + r2(b);
+      svg.push('<rect class="ch-bar" x="' + x + '" y="' + (T + ph - h) + '" width="' + (bw - 2) + '" height="' + h + '" rx="3"/>');
+      svg.push('<rect class="ch-hit" x="' + (L + k * bw) + '" y="' + T + '" width="' + bw + '" height="' + ph + '" data-tip="<b>' + label + "</b><br>" + c + ' طالب"/>');
+    });
+    svg.push('<line class="ch-base" x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>');
+    for (var t2 = 0; t2 <= bins; t2 += 2) svg.push('<text class="ch-ax" x="' + X(t2 * w) + '" y="' + (T + ph + 14) + '" text-anchor="middle">' + r2(t2 * w) + "</text>");
+    // خط المتوسط
+    svg.push('<line class="ch-mean" x1="' + X(st.mean) + '" x2="' + X(st.mean) + '" y1="' + (T - 6) + '" y2="' + (T + ph) + '"/>');
+    svg.push('<text class="ch-lbl" x="' + X(st.mean) + '" y="' + (T - 10) + '" text-anchor="middle">المتوسط ' + r2(st.mean) + "</text>");
+    // درجتك
+    var mine = (exam.mine || []).filter(function (x) { return x.subject === exam.subj; })[0];
+    if (mine && mine.grade != null) {
+      var mxp = X(Number(mine.grade));
+      svg.push('<circle class="ch-me" cx="' + mxp + '" cy="' + (T + ph) + '" r="5"/>');
+      svg.push('<line class="ch-me-l" x1="' + mxp + '" x2="' + mxp + '" y1="' + (T + ph + 5) + '" y2="' + (H - 14) + '"/>');
+      svg.push('<text class="ch-me-t" x="' + mxp + '" y="' + (H - 2) + '" text-anchor="middle">أنت ' + r2(Number(mine.grade)) + "</text>");
+    }
+    box.innerHTML = '<h2 class="card-title">توزيع درجات المرحلة</h2>' +
+      '<div class="ch-stats"><div><b>' + r2(st.mean) + '</b><span>المتوسط</span></div><div><b>' + r2(st.sd) + '</b><span>الانحراف المعياري</span></div><div><b>' + r2(st.med) + '</b><span>الوسيط</span></div></div>' +
+      '<svg class="ch-svg" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="توزيع الدرجات">' + svg.join("") + "</svg>" +
+      '<div class="ch-legend"><span><i class="lg-bar"></i>عدد الطلاب</span><span><i class="lg-mean"></i>المتوسط</span><span><i class="lg-band"></i>انحراف معياري واحد (' + r2(s0) + " – " + r2(s1) + ")</span>" + (mine ? '<span><i class="lg-me"></i>درجتك</span>' : "") + "</div>" +
+      '<p class="note ch-note">' + Math.round(vals.filter(function (v) { return v >= s0 && v <= s1; }).length / vals.length * 100) + "% من المرحلة درجاتهم داخل المنطقة المظللة.</p>";
+    box.hidden = false; bindTips(box);
+  }
+
+  function grpOrder(g) { var m = /^A(\d+)$/.exec(g || ""); return m ? Number(m[1]) : 99; }
+
+  // معدل كل كروب: عمود أفقي لكل كروب، ومجموعتنا ملونة
+  function drawGroups() {
+    var box = $("exam-chart"), rows = exam.stage[exam.subj] || [], by = {};
+    rows.forEach(function (x) { if (x.grade == null) return; var g = x.grp || "—"; (by[g] = by[g] || []).push(Number(x.grade)); });
+    var gs = Object.keys(by).filter(function (g) { return g !== "—"; }).sort(function (a, b) { return grpOrder(a) - grpOrder(b); });
+    if (!gs.length) { box.hidden = true; return; }
+    var mx = Number(rows[0].max_grade) || 10, all = stats(rows.filter(function (x) { return x.grade != null; }).map(function (x) { return Number(x.grade); }));
+    var info = gs.map(function (g) { return Object.assign({ g: g }, stats(by[g])); });
+    var rank = info.slice().sort(function (a, b) { return b.mean - a.mean; }).map(function (x) { return x.g; });
+    var W = 340, rowH = 22, T = 8, L = 40, R = 44, H = T + gs.length * rowH + 22, pw = W - L - R, svg = [];
+    var X = function (v) { return L + (v / mx) * pw; };
+    info.forEach(function (x, i) {
+      var y = T + i * rowH, ours = x.g === "A9";
+      svg.push('<text class="ch-ax' + (ours ? " ours" : "") + '" x="' + (L - 8) + '" y="' + (y + 15) + '" text-anchor="end">' + x.g + "</text>");
+      svg.push('<rect class="ch-gbar' + (ours ? " ours" : "") + '" x="' + L + '" y="' + (y + 4) + '" width="' + Math.max(2, X(x.mean) - L) + '" height="' + (rowH - 8) + '" rx="3"/>');
+      svg.push('<text class="ch-val' + (ours ? " ours" : "") + '" x="' + (W - 2) + '" y="' + (y + 15) + '" text-anchor="end">' + r2(x.mean) + "</text>");
+      svg.push('<rect class="ch-hit" x="0" y="' + y + '" width="' + W + '" height="' + rowH + '" data-tip="<b>' + x.g + (ours ? " · مجموعتنا" : "") + "</b><br>المعدل " + r2(x.mean) + " · الانحراف " + r2(x.sd) + "<br>" + x.n + " طالب · الترتيب " + (rank.indexOf(x.g) + 1) + " من " + gs.length + '"/>');
+    });
+    var yb = T + gs.length * rowH;
+    svg.push('<line class="ch-mean" x1="' + X(all.mean) + '" x2="' + X(all.mean) + '" y1="' + T + '" y2="' + yb + '"/>');
+    svg.push('<text class="ch-lbl" x="' + X(all.mean) + '" y="' + (yb + 16) + '" text-anchor="middle">معدل المرحلة ' + r2(all.mean) + "</text>");
+    var ourRank = rank.indexOf("A9") + 1;
+    box.innerHTML = '<h2 class="card-title">معدل كل كروب</h2>' +
+      (ourRank ? '<p class="note ch-note">مجموعتنا A9 ترتيبها ' + ourRank + " من " + gs.length + " كروب بهالمادة.</p>" : "") +
+      '<svg class="ch-svg" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="معدل كل كروب">' + svg.join("") + "</svg>";
+    box.hidden = false; bindTips(box);
+  }
+
+  function drawStageGroups() {
+    var rows = exam.stage[exam.subj] || [], q = $("stage-search").value.trim(), by = {};
+    var myName = state.me ? state.me.name : "";
+    rows.forEach(function (x) { if (q && x.name.indexOf(q) === -1) return; var g = x.grp || "—"; (by[g] = by[g] || []).push(x); });
+    var gs = Object.keys(by).sort(function (a, b) { return grpOrder(a) - grpOrder(b); });
+    $("stage-count").textContent = "(" + rows.length + " طالب)";
+    $("exam-stage").innerHTML = gs.map(function (g) {
+      var list = by[g], st = stats(list.filter(function (x) { return x.grade != null; }).map(function (x) { return Number(x.grade); }));
+      var k = 0, prev = null;
+      var html = list.map(function (x, i) { if (x.grade !== prev) { k = i + 1; prev = x.grade; }
+        return gradeRow(k, { name: x.name }, x.grade, x.max_grade, x.ours && x.name === myName, x.ours); }).join("");
+      return '<details class="grp-sec' + (g === "A9" ? " ours" : "") + '"' + (q || g === "A9" ? " open" : "") + '><summary><b>' + (g === "—" ? "بدون كروب" : g) + (g === "A9" ? ' <span class="tag special">مجموعتنا</span>' : "") +
+        '</b><span class="note">' + list.length + " طالب" + (st ? " · المعدل " + r2(st.mean) : "") + '</span><svg class="adm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' + html + "</details>";
+    }).join("") || '<p class="note center-text" style="padding:16px">ماكو اسم بهذا البحث</p>';
+    $("stage-more").hidden = true;
+  }
+
   function drawStage() {
+    if (exam.sort === "grade") drawDist();
+    else if (exam.sort === "grp") drawGroups();
+    else $("exam-chart").hidden = true;
+    if (exam.sort === "grp") return drawStageGroups();
     var rows = exam.stage[exam.subj] || [];
     var q = $("stage-search").value.trim();
     var list = q ? rows.filter(function (x) { return x.name.indexOf(q) !== -1; }) : rows.slice();
