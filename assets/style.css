@@ -1429,3 +1429,5 @@ textarea.tg-text { resize: vertical; min-height: 160px; }
 .grp-sec[open] .adm-chev { transform: rotate(180deg); }
 .grp-sec .exam-row { border-top: 1px solid var(--border); }
 .ch-me-l { stroke: var(--ch-me); stroke-width: 1.5; stroke-dasharray: 2 2; }
+.cn-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 12px; font-weight: 700; }
+.cn-row .chips { margin: 0; }
