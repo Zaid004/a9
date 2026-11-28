@@ -1386,13 +1386,16 @@
     }).catch(function () { loading(false); alert("صار خطأ بالاتصال."); });
   }
 
-  // الحد لكل مجموعة: التوزيع متساوي (17 بنية = 5،4،4،4 · 14 ولد = 4،4،3،3)
+  // الحد لكل مجموعة: التوزيع متساوي على عدد المجاميع (مثلاً 17 بنية على 4 = 5،4،4،4)
+  function groupsN() { return (consult && consult.n_groups) || 4; }
+  function groupMax() { var v = consult; return v && v.total_students ? Math.ceil(v.total_students / groupsN()) : CAP.total; }
+  function groupNums() { var a = []; for (var i = 1; i <= groupsN(); i++) a.push(i); return a; }
   function capFor(gr, gender) {
-    var v = consult;
+    var v = consult, n = groupsN();
     var total = gender === "F" ? v.girls_total : v.boys_total;
     if (total == null) return CAP[gender];
     var key = gender === "F" ? "girls" : "boys";
-    var base = Math.floor(total / 4), extra = total % 4;
+    var base = Math.floor(total / n), extra = total % n;
     var over = v.groups.filter(function (x) { return x[key] > base; }).length;
     return gr[key] > base || over < extra ? base + 1 : base;
   }
@@ -1402,6 +1405,7 @@
     var other = g === "F" ? "ولد" : "بنات";
     // status
     var waiting = notOpenYet();
+    $("consult-sub").textContent = groupsN() + " مجاميع، والبنات والولد يتوزعون عليها بالتساوي.";
     var openLabel = v.opens_at ? new Date(v.opens_at).toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Baghdad" }) : "";
     $("consult-status").innerHTML =
       (waiting ? '<div class="open-banner"><div>الانضمام يفتح الساعة <b>' + openLabel + '</b> بتوقيت بغداد</div><span>باقي <b id="open-count">' + fmtLeft(msToOpen()) + "</b></span></div>" : "") +
@@ -1412,7 +1416,7 @@
     $("consult-groups").innerHTML = v.groups.map(function (gr) {
       var mine = v.my_group === gr.no;
       var myCount = g === "F" ? gr.girls : gr.boys;
-      var room = myCount < capFor(gr, g) && gr.girls + gr.boys < CAP.total;
+      var room = myCount < capFor(gr, g) && gr.girls + gr.boys < groupMax();
       var repG = v.rep_group === gr.no;
       var btn = "";
       if (waiting) btn = "";
@@ -1423,7 +1427,7 @@
       }
       var members = gr.members.map(function (m) {
         var sel = admin ? '<select class="cmove" data-move="' + m.id + '">' +
-          [1, 2, 3, 4].map(function (n) { return '<option value="' + n + '"' + (n === gr.no ? " selected" : "") + ">" + n + "</option>"; }).join("") +
+          groupNums().map(function (n) { return '<option value="' + n + '"' + (n === gr.no ? " selected" : "") + ">" + n + "</option>"; }).join("") +
           '<option value="">برة</option></select>' : "";
         return '<div class="cmember' + (admin ? " g-" + m.gender : "") + '">' + avatar(m) + '<span class="nm">' + esc(m.name) + "</span>" +
           (m.is_admin ? '<span class="tag gold">الممثل</span>' : "") + (state.me && m.id === state.me.id ? '<span class="tag special">أنت</span>' : "") + sel + "</div>";
@@ -1449,13 +1453,16 @@
       var un = v.unassigned;
       $("consult-admin").innerHTML =
         '<h2 class="card-title">إدارة المجاميع</h2>' +
+        '<div class="cn-row"><span>عدد المجاميع</span><div class="chips">' + [3, 4, 5, 6].map(function (n) {
+          return '<button type="button" class="chip' + (n === groupsN() ? " on" : "") + '" data-ngroups="' + n + '">' + n + "</button>";
+        }).join("") + "</div></div>" +
         '<button type="button" class="btn ghost print-btn" data-print="1">إصدار ورقة A4 للمجاميع</button>' +
         '<button type="button" class="btn ' + (v.locked ? "ghost" : "") + '" data-lock="' + (v.locked ? "0" : "1") + '">' + (v.locked ? "فتح المجاميع للتبديل" : "تثبيت المجاميع") + "</button>" +
         '<h3 class="sub-title">ما اختاروا (' + un.length + ")</h3>" +
         (un.length ? un.map(function (s) {
           return '<div class="cmember g-' + s.gender + '">' + avatar(s) + '<span class="nm">' + esc(s.name) + "</span>" +
             '<select class="cmove" data-move="' + s.id + '"><option value="" selected>وزّع</option>' +
-            [1, 2, 3, 4].map(function (n) { return '<option value="' + n + '">' + n + "</option>"; }).join("") + "</select></div>";
+            groupNums().map(function (n) { return '<option value="' + n + '">' + n + "</option>"; }).join("") + "</select></div>";
         }).join("") : '<p class="note">الكل اختاروا.</p>');
     }
   }
@@ -1463,7 +1470,7 @@
   function renderFriends() {
     var mine = consult.groups.filter(function (x) { return x.no === consult.my_group; })[0];
     var g = consult.my_gender;
-    var full = mine && ((g === "F" ? mine.girls : mine.boys) >= capFor(mine, g) || mine.girls + mine.boys >= CAP.total);
+    var full = mine && ((g === "F" ? mine.girls : mine.boys) >= capFor(mine, g) || mine.girls + mine.boys >= groupMax());
     $("friend-search").hidden = !!full;
     if (full) { $("friend-list").innerHTML = '<p class="note">مجموعتك تعبت، ما تگدر تضيف أكثر.</p>'; return; }
     var q = $("friend-search").value.trim();
@@ -1479,6 +1486,12 @@
     else if (b.dataset.leave) { if (confirm("تطلع من مجموعتك؟")) consultCall("a9_consult_leave", {}); }
     else if (b.dataset.add) consultCall("a9_consult_add_friend", { p_friend: Number(b.dataset.add) });
     else if (b.dataset.print) printConsult();
+    else if (b.dataset.ngroups) {
+      var n = Number(b.dataset.ngroups); if (n === groupsN()) return;
+      var lost = consult.groups.filter(function (x) { return x.no > n && x.members.length; });
+      var msg = "تخلي المجاميع " + n + "؟" + (lost.length ? "\nاللي بالمجاميع الزايدة (" + lost.map(function (x) { return x.no; }).join("، ") + ") يرجعون لقائمة \"ما اختاروا\" وتوزعهم من جديد." : "");
+      if (confirm(msg)) consultCall("a9_admin_consult_groups", { p_n: n });
+    }
     else if (b.dataset.lock) {
       var lock = b.dataset.lock === "1";
       if (confirm(lock ? "تثبت المجاميع؟ ما أحد يگدر يبدل بعدها." : "تفتح المجاميع للتبديل؟")) consultCall("a9_admin_consult_lock", { p_locked: lock });
